@@ -1,0 +1,45 @@
+.Home {
+  text-align: center;
+}
+
+.Home-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+.Home-header {
+  background-color: #282c34;
+  min-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+.Home .play-options {
+  background-color: #680000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-evenly;
+  color: white;
+  min-height: 20vh;
+}
+.Home .play-options button{
+  font-size: 1.5rem;
+  border: 6px solid #282c34;
+  background: white;
+  color: #282c34;
+  border-radius: 5px
+}
+.Home .play-options input{
+  font-size: 1.5rem;
+  height: 26px;
+  width: 90px;
+  color: #282c34;
+  position: relative;
+}
+.Home-link {
+  color: #61dafb;
+}
