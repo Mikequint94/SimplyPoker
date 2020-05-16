@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useHistory } from "react-router-dom";
-import logo from './cardsgif.gif';
+import logo from './media/cardsgif.gif';
 import './Home.css';
 
 function Home() {

@@ -1,15 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './Room.css';
+import Chat from './Chat.js';
+const io = require('socket.io-client')
+const socket = io.connect('http://localhost:3001')
 
 const Room = ({ match }) => {
   const [username, setUsername] = useState('');
-  const [usernameReady, setUsernameReady] = useState(false);  
+  const [usernameReady, setUsernameReady] = useState(false);
+  const [allPlayers, setAllPlayers] = useState([]);
+
+  const setUser = () => {
+    socket.emit('set user', username);
+    setUsernameReady(true);
+  };
 
   const PlayerList = () =>(
     <div>
-      Current Players: {username}
+      Current Players: {allPlayers}
     </div>
   );
+
+  useEffect(() => {
+    socket.on('all users', (usernames) => {
+      console.log(usernames);
+      setAllPlayers(usernames.users);
+    });  
+  }, []);
 
   return (
     <div className="room">
@@ -27,13 +43,15 @@ const Room = ({ match }) => {
                 name="username"
                 maxLength="24"
                 value={username}
+                onKeyDown={(e) => {if (e.keyCode === 13) {setUser()}}}
                 onChange={(e) => setUsername(e.target.value)}
               ></input>
-              <button onClick={() => setUsernameReady(true)}>Good to Go</button>
+              <button onClick={() => setUser()}>Good to Go</button>
             </div>
           </div> 
         }
       </div>
+      {<Chat socket={socket} user={username}/>}
     </div>
   );
 }
