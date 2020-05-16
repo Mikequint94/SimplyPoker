@@ -1,16 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import './Room.css';
 import Chat from './Chat.js';
-const io = require('socket.io-client')
-const socket = io.connect('http://localhost:3001')
+const io = require('socket.io-client');
 
 const Room = ({ match }) => {
   const [username, setUsername] = useState('');
+  const [socket, setSocket] = useState(null);
   const [usernameReady, setUsernameReady] = useState(false);
   const [allPlayers, setAllPlayers] = useState([]);
+  const { roomId } = match.params;
+  useEffect(() => {
+    setSocket(io.connect(`http://localhost:3001?roomId=${roomId}`));
+  }, [roomId]);
 
   const setUser = () => {
-    socket.emit('set user', username);
+    socket.emit(`set user ${roomId}`, username);
     setUsernameReady(true);
   };
 
@@ -21,22 +25,24 @@ const Room = ({ match }) => {
   );
 
   useEffect(() => {
-    socket.on('all users', (usernames) => {
-      console.log(usernames);
-      setAllPlayers(usernames.users);
-    });  
-  }, []);
-
+    if (socket) {
+      socket.on(`all users ${roomId}`, (usernames) => {
+        console.log(usernames);
+        setAllPlayers(usernames.users);
+      });  
+    }
+  }, [socket, roomId]);
+  
   return (
     <div className="room">
-      Welcome to room {match.params.roomId}!
+      Welcome to room {roomId}!
       <div>
         { usernameReady ? <PlayerList /> : 
           <div id="modal" className="modal">
             <h1>
               What is your name? 
             </h1>
-            <div>
+            { socket ? <div>
               <input
                 placeholder={'enter name'}
                 type="text"
@@ -47,11 +53,11 @@ const Room = ({ match }) => {
                 onChange={(e) => setUsername(e.target.value)}
               ></input>
               <button onClick={() => setUser()}>Good to Go</button>
-            </div>
+            </div> : <div>loading...</div>}
           </div> 
         }
       </div>
-      {<Chat socket={socket} user={username}/>}
+      { socket ? <Chat socket={socket} roomId={roomId} user={username}/> : null}
     </div>
   );
 }

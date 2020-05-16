@@ -16,7 +16,7 @@ let port = process.env.PORT || 3001;
 //   }
 // });
 
-let people = {};
+let rooms = {};
 
 // let playerCards = {}; // ex. {'mike': 13, 'chy': 12}
 // let currentPlayer = '';
@@ -59,30 +59,32 @@ let people = {};
 //   stackShuffle();
 // };
 
-io.on('connection', function(socket){
-  console.log('yo')
-  io.emit('all users', {users: Object.values(people)});
+io.on('connection', (socket) => {
+  console.log(socket.handshake.query.roomId)
   let user = null;
+  const { roomId } = socket.handshake.query;
+  if (!rooms[roomId]) {
+    rooms[roomId] = {};
+  }
+  io.emit(`all users ${roomId}`, {users: Object.values(rooms[roomId])});
 
-  socket.on('set user', function(msg){
-    console.log('set user', msg)
-    user = msg;
-    people[socket.id] = user;
-    io.emit('all users', {users: Object.values(people)});
-    io.emit('chat message', user + " has joined the chat!");
+  socket.on(`set user ${roomId}`, (username) => {
+    user = username;
+    rooms[roomId][socket.id] = user;
+    io.emit(`all users ${roomId}`, {users: Object.values(rooms[roomId])});
+    io.emit(`chat message ${roomId}`, user + " has joined the chat!");
   });
 
-  socket.on('chat message', function(chatMsg){
-    console.log(user)
-    io.emit('chat message', user + " : " + chatMsg);
+  socket.on(`chat message ${roomId}`, (chatMsg) => {
+    io.emit(`chat message ${roomId}`, user + " : " + chatMsg);
   });
 
-  socket.on('typing', function(typer){
-    io.emit('typing', {msg: typer + " is typing", color: colors[typer]});
+  socket.on(`typing ${roomId}`, (typer) => {
+    io.emit(`typing ${roomId}`, typer + " is typing");
   });
 
-  socket.on('stoptyping', function(typer){
-    io.emit('stoptyping', typer);
+  socket.on(`stop typing ${roomId}`, (typer) => {
+    io.emit(`stop typing ${roomId}`, typer);
   });
 
   // socket.on('start new game', function(){
@@ -138,11 +140,11 @@ io.on('connection', function(socket){
   //   io.emit('change board color', gameColors);
   // });
 
-  socket.on('disconnect', function(){
-    delete people[socket.id];
-    io.emit('all users', {users: Object.values(people)});
+  socket.on('disconnect', () => {
+    delete rooms[roomId][socket.id];
+    io.emit(`all users ${roomId}`, {users: Object.values(rooms[roomId])});
     if (user) {
-      io.emit('chat message', user + " has left the chat.");
+      io.emit(`chat message ${roomId}`, user + " has left the chat.");
     }
   });
 });

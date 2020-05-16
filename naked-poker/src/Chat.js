@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './Chat.css';
 
-const Chat = ({socket, user}) => {
+const Chat = ({socket, roomId, user}) => {
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState([]);
 
@@ -17,18 +17,18 @@ const Chat = ({socket, user}) => {
   };
 
   useEffect(() => {
-    socket.on('chat message', (msg) => {
+    socket.on(`chat message ${roomId}`, (msg) => {
         console.log(msg)
         setMessages(oldMessages => [...oldMessages, msg]);
         // chatBox.scrollTo(0, msgBox.scrollHeight);
         let sliced = msg.slice(msg.length-16, msg.length);
         let audio;
         if (sliced === "joined the chat!") {
-        audio = document.querySelector(`audio[data-key="join"]`);
+            audio = document.querySelector(`audio[data-key="join"]`);
         } else if (sliced === "s left the chat!") {
-        audio = document.querySelector(`audio[data-key="leave"]`);
+            audio = document.querySelector(`audio[data-key="leave"]`);
         } else {
-        audio = document.querySelector(`audio[data-key="chat"]`);
+            audio = document.querySelector(`audio[data-key="chat"]`);
         }
         if(!audio) return;
         const playPromise = audio.play();
@@ -42,11 +42,11 @@ const Chat = ({socket, user}) => {
             });
         }
       });
-  }, [socket]);
+  }, [socket, roomId]);
 
   const sendMessage = () => {
     // if (user && input.value.length > 0) {
-    socket.emit('chat message', message);
+    socket.emit(`chat message ${roomId}`, message);
     // socket.emit('stoptyping', user);
     // input.value = '';
     // } else if (input.value.length > 0){
