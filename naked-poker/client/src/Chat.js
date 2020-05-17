@@ -4,6 +4,13 @@ import './Chat.css';
 const Chat = ({socket, roomId, user}) => {
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState([]);
+  // const [typing, setTyping] = useState([]);
+  // const messagesRef = useRef(messages);
+  // const typingRef = useRef(typing);
+  // useEffect(() => {
+  //     messagesRef.current = messages;
+  //     typingRef.current = typing;
+  // });
 
   const Messages = () => {
     const messageItems = messages.map((msg, idx) => {
@@ -16,53 +23,82 @@ const Chat = ({socket, roomId, user}) => {
     )
   };
 
+  const playAudio = (dataKey) => {
+    const audio = document.querySelector(`audio[data-key="${dataKey}"]`);
+    if(!audio) return;
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      playPromise.then(_ => {
+          // Automatic playback started!
+      })
+      .catch(error => {
+          // Auto-play was prevented
+          console.log(error);
+      });
+    }
+  };
+
   useEffect(() => {
     socket.on(`chat message ${roomId}`, (msg) => {
-        console.log(msg)
         setMessages(oldMessages => [...oldMessages, msg]);
-        // document.getElementById('chatBox').scrollTo(0, document.getElementById('chatBox').scrollHeight);
         let sliced = msg.slice(msg.length-16, msg.length);
-        let audio;
         if (sliced === "joined the chat!") {
-            audio = document.querySelector(`audio[data-key="join"]`);
+          playAudio('join');
         } else if (sliced === "s left the chat!") {
-            audio = document.querySelector(`audio[data-key="leave"]`);
+          playAudio('leave');
         } else {
-            audio = document.querySelector(`audio[data-key="chat"]`);
-        }
-        if(!audio) return;
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-            playPromise.then(_ => {
-                // Automatic playback started!
-            })
-            .catch(error => {
-                // Auto-play was prevented
-                console.log(error);
-            });
+          playAudio('chat');
         }
       });
   }, [socket, roomId]);
+  // useEffect(() => {
+  //   socket.on(`typing ${roomId}`, (msg) => {
+  //     let typingUser = msg.slice(0,-13);
+  //     typingUser = typingUser.replace(/[_#.-\s]/g,'0');
+  //     console.log(typingRef.current)
+  //     if ( !typingRef.current.includes(typingUser) && user.replace(/[_#.-\s]/g,'0') !== typingUser) {
+  //       setTyping(() => typingRef.current.push(typingUser));
+  //       console.log(typingRef.current)
+  //       setMessages(oldMessages => [...oldMessages, msg]);
+  //       playAudio('typing');
+  //     }
+  //   });
+  // }, [socket, roomId, user]);
+  // useEffect(() => {
+  //   socket.on(`stop typing ${roomId}`, (typingUser) => {
+  //     typingUser = typingUser.replace(/[_#.-\s]/g,'0');
+  //     console.log(typingRef.current)
+  //     if (typingRef.current.includes(typingUser)) {
+  //       const newTyping = typingRef.current.filter(user => user !== typingUser);
+  //       console.log(newTyping)
+  //       setTyping(() => newTyping);
+        
+  //       const newMessages = messagesRef.current.filter(msg => msg !== `${typingUser} is typing...`);
+  //       // try without arrow
+  //       console.log(newMessages);
+  //       setMessages(() => newMessages);
+  //     }
+  //   });
+  // }, [socket, roomId]);
 
   const sendMessage = () => {
-    // if (user && input.value.length > 0) {
-    socket.emit(`chat message ${roomId}`, message);
-    setMessage('');
-    // socket.emit('stoptyping', user);
-    // input.value = '';
-    // } else if (input.value.length > 0){
-    //   // login(input.value);
-    //   socket.emit('set user', input.value);
-    //   document.getElementById('title').className = "hidden2";
-    //   document.getElementById('button').innerHTML = "Send";
-    //   user = input.value;
-    //   input.value = '';
-    // }
-    // return false;
+    if (message) {
+      // socket.emit(`stop typing ${roomId}`, user);
+      socket.emit(`chat message ${roomId}`, message);
+      setMessage('');
+    }
   };
 
+  // const isTyping = () => {
+  //   if (message) {
+  //     socket.emit(`typing ${roomId}`, user);
+  //   } else {
+  //     socket.emit(`stop typing ${roomId}`, user);
+  //   }
+  // };
+
   return (
-    <div id="chatBox">
+    <div>
         {<Messages />}
         <input
             id="form"

@@ -77,24 +77,24 @@ io.on('connection', (socket) => {
     io.emit(`chat message ${roomId}`, user + " : " + chatMsg);
   });
 
-  socket.on(`typing ${roomId}`, (typer) => {
-    io.emit(`typing ${roomId}`, typer + " is typing");
-  });
-
-  socket.on(`stop typing ${roomId}`, (typer) => {
-    io.emit(`stop typing ${roomId}`, typer);
-  });
-
-  // socket.on('start new game', function(){
-  //   playerCards = {}; 
-  //   resetAndMakeDeck();
-  //   gameColors = Object.assign({}, colors);
-  //   Object.keys(gameColors).forEach((user) => {
-  //       playerCards[user] = cheatStarts[user] || startingCardNum;
-  //   })
-  //   io.emit('start new round', deck, gameColors, playerCards);
-  //   io.emit('chat message', {msg: '~~~ ' + user + " has started a new game! ~~~", color: 'white' });
+  // socket.on(`typing ${roomId}`, (typer) => {
+  //   io.emit(`typing ${roomId}`, typer + " is typing...");
   // });
+  
+  // socket.on(`stop typing ${roomId}`, (typer) => {
+  //   io.emit(`stop typing ${roomId}`, typer);
+  // });
+
+  socket.on(`start game ${roomId}`, () => {
+    // playerCards = {}; 
+    // resetAndMakeDeck();
+    // gameColors = Object.assign({}, colors);
+    // Object.keys(gameColors).forEach((user) => {
+    //     playerCards[user] = cheatStarts[user] || startingCardNum;
+    // })
+    io.emit(`start game ${roomId}`);
+    io.emit(`chat message ${roomId}`, '~~~ ' + user + " has started a new game! ~~~");
+  });
   // socket.on('pick from deck', function(){
   //   io.emit('pick from deck');
   // });

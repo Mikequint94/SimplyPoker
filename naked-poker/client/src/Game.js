@@ -1,41 +1,50 @@
 import React, { useState, useEffect } from 'react';
 import './Game.css';
 
-const Game = ({roomId, players}) => {
-  // const [username, setUsername] = useState('');
-  // const [socket, setSocket] = useState(null);
-  // const [usernameReady, setUsernameReady] = useState(false);
-  // const [allPlayers, setAllPlayers] = useState([]);
-  // const { roomId } = match.params;
-  // useEffect(() => {
-  //   setSocket(io.connect(`http://localhost:3001?roomId=${roomId}`));
-  // }, [roomId]);
+const Game = ({roomId, players, socket, user}) => {
+  const [started, setStarted] = useState(false);
 
-  // const setUser = () => {
-  //   socket.emit(`set user ${roomId}`, username);
-  //   setUsernameReady(true);
-  // };
+  useEffect(() => {
+    socket.on(`start game ${roomId}`, () => {
+      setStarted(true);
+      // playAudio('newGame');
+    });
+  }, [socket, roomId]);
 
-  const PlayerList = () =>(
-    <div>
-      Current Players: {players}
+  const PlayersList = () => {
+    const playerMap = players.map((player, idx) => (
+      <li key={`player${idx}`}>
+        {idx+1}: ~{player}~
+      </li>
+    ));
+    return (
+      <ul>
+        {playerMap}
+      </ul>
+    )
+  };
+
+  const StartModal = () => (
+    <div id="modal" className="modal">
+      <h2>
+        Press start once everyone is ready!
+        You can play with 2-5 players.
+        Current Players:  
+      </h2>
+      <PlayersList/>
+      <div>
+        <button onClick={() => {
+          setStarted(true);
+          socket.emit(`start game ${roomId}`, user);
+          }}>Start</button>
+      </div>
     </div>
-  );
-
-  // useEffect(() => {
-  //   if (socket) {
-  //     socket.on(`all users ${roomId}`, (usernames) => {
-  //       console.log(usernames);
-  //       setAllPlayers(usernames.users);
-  //     });  
-  //   }
-  // }, [socket, roomId]);
+  )
   
   return (
     <div className="game">
       Welcome to room {roomId}!
-      This is the Game
-      {<PlayerList/>}
+      { started ? <div>This is the Game</div> : <StartModal />}
     </div>
   );
 }

@@ -16,14 +16,15 @@ const Room = ({ match }) => {
   }, [roomId]);
 
   const setUser = () => {
-    socket.emit(`set user ${roomId}`, username);
-    setUsernameReady(true);
+    if (username) {  
+      socket.emit(`set user ${roomId}`, username);
+      setUsernameReady(true);
+    }
   };
 
   useEffect(() => {
     if (socket) {
       socket.on(`all users ${roomId}`, (usernames) => {
-        console.log(usernames);
         setAllPlayers(usernames.users);
       });  
     }
@@ -31,7 +32,7 @@ const Room = ({ match }) => {
   
   return (
     <div className="room">
-      { usernameReady ? <Game roomId={roomId} players={allPlayers}/> : 
+      { usernameReady ? <Game roomId={roomId} socket={socket} user={username} players={allPlayers}/> : 
         <div id="modal" className="modal">
           <h1>
             What is your name? 
