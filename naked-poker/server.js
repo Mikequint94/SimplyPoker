@@ -1,20 +1,19 @@
 let express = require("express");
+const path = require('path');
 let app = express();
-// app.use("/css",express.static(__dirname + "/css"));
-// app.use("/assets",express.static(__dirname + "/assets"));
-// app.use("/scripts",express.static(__dirname + "/scripts"));
+app.use(express.static(path.join(__dirname, 'build')));
 let http = require('http').Server(app);
 let io = require('socket.io')(http);
 
-let port = process.env.PORT || 3001;
+let port = process.env.PORT || 3000;
 
-// app.get('/', function(req, res){
-//   if (req.headers['x-forwarded-proto'] != 'https' && process.env.NODE_ENV === 'production') {
-//     res.redirect('https://'+req.hostname+req.url);
-//   } else {
-//     res.sendFile(__dirname.split('src')[0] + 'public/index.html');
-//   }
-// });
+app.get('*', (req, res) => {
+  if (req.headers['x-forwarded-proto'] != 'https' && process.env.NODE_ENV === 'production') {
+    res.redirect('https://'+req.hostname+req.url);
+  } else {
+    res.sendFile(path.join(__dirname+'/build/index.html'));
+  }
+});
 
 let rooms = {};
 

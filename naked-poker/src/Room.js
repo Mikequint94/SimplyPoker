@@ -5,13 +5,14 @@ import Game from './Game.js';
 const io = require('socket.io-client');
 
 const Room = ({ match }) => {
+  console.log(match)
   const [username, setUsername] = useState('');
   const [socket, setSocket] = useState(null);
   const [usernameReady, setUsernameReady] = useState(false);
   const [allPlayers, setAllPlayers] = useState([]);
   const { roomId } = match.params;
   useEffect(() => {
-    setSocket(io.connect(`http://localhost:3001?roomId=${roomId}`));
+    setSocket(io.connect(`http://localhost:3000?roomId=${roomId}`));
   }, [roomId]);
 
   const setUser = () => {
