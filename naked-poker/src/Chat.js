@@ -20,7 +20,7 @@ const Chat = ({socket, roomId, user}) => {
     socket.on(`chat message ${roomId}`, (msg) => {
         console.log(msg)
         setMessages(oldMessages => [...oldMessages, msg]);
-        // chatBox.scrollTo(0, msgBox.scrollHeight);
+        // document.getElementById('chatBox').scrollTo(0, document.getElementById('chatBox').scrollHeight);
         let sliced = msg.slice(msg.length-16, msg.length);
         let audio;
         if (sliced === "joined the chat!") {
@@ -47,6 +47,7 @@ const Chat = ({socket, roomId, user}) => {
   const sendMessage = () => {
     // if (user && input.value.length > 0) {
     socket.emit(`chat message ${roomId}`, message);
+    setMessage('');
     // socket.emit('stoptyping', user);
     // input.value = '';
     // } else if (input.value.length > 0){
@@ -64,6 +65,7 @@ const Chat = ({socket, roomId, user}) => {
     <div id="chatBox">
         {<Messages />}
         <input
+            id="form"
             placeholder={'enter chat message'}
             type="text"
             name="chatInput"

@@ -3,10 +3,13 @@
     background: aquamarine;
     font-size: 1.5rem;
     color: #282c34;
+    overflow-y: hidden;
 }
 
 .modal {
-    margin: 10vw;
+    position: absolute;
+    top: 10vh;
+    left: 9vw;
     height: 30vh;
     width: 80vw;
     display: flex;
