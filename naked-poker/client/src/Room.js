@@ -34,9 +34,9 @@ const Room = ({ match }) => {
     <div className="room">
       { usernameReady ? <Game roomId={roomId} socket={socket} user={username} players={allPlayers}/> : 
         <div id="modal" className="modal">
-          <h1>
+          <h2>
             What is your name? 
-          </h1>
+          </h2>
           { socket ? <div>
             <input
               placeholder={'enter name'}

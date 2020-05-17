@@ -3,6 +3,7 @@ import './Game.css';
 
 const Game = ({roomId, players, socket, user}) => {
   const [started, setStarted] = useState(false);
+  // const [allPlayers, setAllPlayers] = useState(players);
 
   useEffect(() => {
     socket.on(`start game ${roomId}`, () => {
@@ -10,6 +11,9 @@ const Game = ({roomId, players, socket, user}) => {
       // playAudio('newGame');
     });
   }, [socket, roomId]);
+  // useEffect(() => {
+  //   setAllPlayers(() => players);
+  // }, [players]);
 
   const PlayersList = () => {
     const playerMap = players.map((player, idx) => (
@@ -26,11 +30,11 @@ const Game = ({roomId, players, socket, user}) => {
 
   const StartModal = () => (
     <div id="modal" className="modal">
-      <h2>
+      <h3>
         Press start once everyone is ready!
-        You can play with 2-5 players.
+        You can play with 2-5 players. <br />
         Current Players:  
-      </h2>
+      </h3>
       <PlayersList/>
       <div>
         <button onClick={() => {

@@ -13,8 +13,8 @@ const Chat = ({socket, roomId, user}) => {
   // });
 
   const Messages = () => {
-    const messageItems = messages.map((msg, idx) => {
-      return <li key={'message'+idx}>{msg}</li>
+    const messageItems = messages.map((msgObj, idx) => {
+      return <li style={{background: msgObj.color, color: msgObj.color === '#282c34' ? 'white' : 'black'}} key={'message'+idx}>{msgObj.msg}</li>
     })
     return (
       <div id="wrapper">
@@ -39,8 +39,8 @@ const Chat = ({socket, roomId, user}) => {
   };
 
   useEffect(() => {
-    socket.on(`chat message ${roomId}`, (msg) => {
-        setMessages(oldMessages => [...oldMessages, msg]);
+    socket.on(`chat message ${roomId}`, (msg, color) => {
+        setMessages(oldMessages => [...oldMessages, {msg, color}]);
         let sliced = msg.slice(msg.length-16, msg.length);
         if (sliced === "joined the chat!") {
           playAudio('join');
@@ -106,6 +106,7 @@ const Chat = ({socket, roomId, user}) => {
             type="text"
             name="chatInput"
             value={message}
+            autoComplete="off"
             onKeyDown={(e) => {if (e.keyCode === 13) {sendMessage()}}}
             onChange={(e) => setMessage(e.target.value)}
         ></input>

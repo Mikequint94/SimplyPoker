@@ -23,15 +23,7 @@ let rooms = {};
 // let deck = [];
 // let startingCardNum = 13;
 
-// let allColors = ['#6EEB83', '#911CFF', '#E4FF1A', '#E8AA14', '#FF5714', '#EA6ED7', '#99FF14' ];
-// const getRandomColor = () => {
-//   if (allColors.length > 0) {
-//     return allColors.splice(Math.floor(Math.random()*allColors.length), 1);
-//   } else {
-//     allColors = ['#6EEB83', '#911CFF', '#E4FF1A', '#E8AA14', '#FF5714', '#EA6ED7', '#99FF14' ];
-//     return ['#6EEA8D'];
-//   }
-// };
+
 // const createDeck = () => {
 //   let deck = [];
 //   const suits = ['♥', '♠', '♣', '♦'];
@@ -58,23 +50,45 @@ let rooms = {};
 //   stackShuffle();
 // };
 
+//shape of Rooms
+// rooms: {
+  // 'SUPF': {
+  //   'allColors': ['color1', 'color2'],
+    //  'users': {
+      //   'Mike': {
+        //     socketId: socket.id,
+        //     color: '#123456'
+      //  }
+  //   }
+  // }
+// }
+
 io.on('connection', (socket) => {
   let user = null;
   const { roomId } = socket.handshake.query;
+  console.log(rooms);
   if (!rooms[roomId]) {
-    rooms[roomId] = {};
+    rooms[roomId] = {
+      allColors: ['#6EEB83', '#c07dff', '#E4FF1A', '#E8AA14', '#FF5714', '#EA6ED7', '#99FF14', '#D4FFA1' ],
+      users: {}
+    };
   }
-  io.emit(`all users ${roomId}`, {users: Object.values(rooms[roomId])});
+  let room = rooms[roomId];
+  console.log(rooms)
+  io.emit(`all users ${roomId}`, {users: Object.keys(room['users'])});
 
   socket.on(`set user ${roomId}`, (username) => {
     user = username;
-    rooms[roomId][socket.id] = user;
-    io.emit(`all users ${roomId}`, {users: Object.values(rooms[roomId])});
-    io.emit(`chat message ${roomId}`, user + " has joined the chat!");
+    room['users'][user] = {};
+    room['users'][user]['socketId'] = socket.id;
+    room['users'][user]['color'] = room['allColors'].splice(Math.floor(Math.random()*room['allColors'].length), 1);;
+    io.emit(`all users ${roomId}`, {users: Object.keys(room['users'])});
+    io.emit(`chat message ${roomId}`, user + " has joined the chat!", '#282c34');
   });
 
   socket.on(`chat message ${roomId}`, (chatMsg) => {
-    io.emit(`chat message ${roomId}`, user + " : " + chatMsg);
+    console.log(room)
+    io.emit(`chat message ${roomId}`, user + " : " + chatMsg, room['users'][user]['color']);
   });
 
   // socket.on(`typing ${roomId}`, (typer) => {
@@ -93,7 +107,7 @@ io.on('connection', (socket) => {
     //     playerCards[user] = cheatStarts[user] || startingCardNum;
     // })
     io.emit(`start game ${roomId}`);
-    io.emit(`chat message ${roomId}`, '~~~ ' + user + " has started a new game! ~~~");
+    io.emit(`chat message ${roomId}`, '~~~ ' + user + " has started a new game! ~~~", '#282c34');
   });
   // socket.on('pick from deck', function(){
   //   io.emit('pick from deck');
@@ -139,10 +153,14 @@ io.on('connection', (socket) => {
   // });
 
   socket.on('disconnect', () => {
-    delete rooms[roomId][socket.id];
-    io.emit(`all users ${roomId}`, {users: Object.values(rooms[roomId])});
+    console.log(room);
+    const disconnectedUser = Object.keys(room['users']).filter(user => room['users'][user]['socketId'] === socket.id);
+    console.log(disconnectedUser);
+    delete room['users'][disconnectedUser];
+
+    io.emit(`all users ${roomId}`, {users: Object.keys(room['users'])});
     if (user) {
-      io.emit(`chat message ${roomId}`, user + " has left the chat.");
+      io.emit(`chat message ${roomId}`, user + " has left the chat.", '#282c34');
     }
   });
 });

@@ -13,6 +13,7 @@
     left: 9vw;
     height: 30vh;
     width: 70vw;
+    text-align: center;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -36,3 +37,9 @@
     color: #282c34;
     position: relative;
   }
+
+  @media screen and (max-width: 480px) {
+    .room .modal h2 {
+        font-size: 1.5rem;
+    }
+}
