@@ -11,7 +11,7 @@ app.get('*', (req, res) => {
   if (req.headers['x-forwarded-proto'] != 'https' && process.env.NODE_ENV === 'production') {
     res.redirect('https://'+req.hostname+req.url);
   } else {
-    res.sendFile(path.join(__dirname+'client/build/index.html'));
+    res.sendFile(path.join(__dirname+'/client/build/index.html'));
   }
 });
 
