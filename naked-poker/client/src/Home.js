@@ -22,7 +22,9 @@ function Home() {
         history.push(`/${roomName}`)
     }
     const joinRoom = () => {
-        history.push(`/${room}`)
+        if (room.length === 4) {
+          history.push(`/${room.toUpperCase()}`)
+        }
     }
 
   return (
@@ -46,6 +48,7 @@ function Home() {
             name="roomId"
             maxLength="4"
             value={room}
+            onKeyDown={(e) => {if (e.keyCode === 13) {joinRoom()}}}
             onChange={(e) => setRoom(e.target.value)}
           ></input>
             <button onClick={joinRoom}>Join room</button>
