@@ -1,17 +1,17 @@
 let express = require("express");
 const path = require('path');
 let app = express();
-app.use(express.static(path.join(__dirname, 'build')));
 let http = require('http').Server(app);
 let io = require('socket.io')(http);
 
-let port = process.env.PORT || 3000;
+let port = process.env.PORT || 5000;
 
+app.use(express.static(path.join(__dirname, 'client/build')));
 app.get('*', (req, res) => {
   if (req.headers['x-forwarded-proto'] != 'https' && process.env.NODE_ENV === 'production') {
     res.redirect('https://'+req.hostname+req.url);
   } else {
-    res.sendFile(path.join(__dirname+'/build/index.html'));
+    res.sendFile(path.join(__dirname+'client/build/index.html'));
   }
 });
 
@@ -59,7 +59,6 @@ let rooms = {};
 // };
 
 io.on('connection', (socket) => {
-  console.log(socket.handshake.query.roomId)
   let user = null;
   const { roomId } = socket.handshake.query;
   if (!rooms[roomId]) {
