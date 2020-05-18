@@ -26,9 +26,11 @@ const Room = ({ match }) => {
 
   useEffect(() => {
     // for testing 
-    setTimeout(() => {
-      setUsername('Mike');
-   }, 300)
+    if (roomId === 'TEST') {
+      setTimeout(() => {
+        setUsername('Mike');
+      }, 300)
+    }
  }, []);
 
   useEffect(() => {
