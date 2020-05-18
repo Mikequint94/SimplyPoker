@@ -33,10 +33,6 @@ let rooms = {'TEST': {
   }
 }};
 
-// let currentPlayer = '';
-// let currentPlayerIdx = -1;
-
-
 const createDeck = () => {
   let deck = [];
   const suits = ['♥', '♠', '♣', '♦'];
@@ -68,12 +64,14 @@ const resetAndMakeDeck = () => {
 // rooms: {
   // 'SUPF': {
   //   'allColors': ['color1', 'color2'],
+  //   'allPlayers': ['mike', 'chy'],
     //  'users': {
       //   'Mike': {
         //     socketId: socket.id,
         //     color: '#123456',
         //     cards: ['A H', '5 D'],
-        //     chips: 10000
+        //     chips: 10000,
+        //     role: 'D'
       //  }
   //   }
   // }
@@ -81,6 +79,8 @@ const resetAndMakeDeck = () => {
 
 io.on('connection', (socket) => {
   let user = null;
+  let currentPlayerIdx = 1;
+  
   const { roomId } = socket.handshake.query;
   if (!rooms[roomId]) {
     rooms[roomId] = {
@@ -115,11 +115,19 @@ io.on('connection', (socket) => {
 
   socket.on(`start game ${roomId}`, () => {
     const deck = resetAndMakeDeck();
-    Object.keys(room['users']).forEach(user => {
+    room['allPlayers'] = Object.keys(room['users']);
+    let roles;
+    if (room['allPlayers'].length > 2) {
+      roles = ['D','Sm','Bg'];
+    } else {
+      roles = ['D','Bg'];
+    }
+    room['allPlayers'].forEach(user => {
       room['users'][user]['cards'] = deck.splice(0,2); 
       room['users'][user]['chips'] = 10000; 
+      room['users'][user]['role'] = roles.shift(); 
     })
-    io.emit(`start game ${roomId}`, room['users']);
+    io.emit(`start game ${roomId}`, room['users'], room['allPlayers'], currentPlayerIdx);
     io.emit(`chat message ${roomId}`, '~~~ ' + user + " has started a new game! ~~~", '#282c34');
   });
   // socket.on('pick from deck', function(){

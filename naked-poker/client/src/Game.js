@@ -4,6 +4,9 @@ import './Game.css';
 const Game = ({roomId, players, socket, user}) => {
   const [started, setStarted] = useState(false);
   const [playerCards, setPlayerCards] = useState(false);
+  const [playersList, setPlayersList] = useState([]);
+  const [currentPlayerIdx, setCurrentPlayerIdx] = useState(0);
+  const [playedBlinds, setPlayedBlinds] = useState(false);
 
   useEffect(() => {
     socket.on(`start game ${roomId}`, (users) => {
@@ -13,7 +16,7 @@ const Game = ({roomId, players, socket, user}) => {
     });
   }, [socket, roomId]);
 
-  const PlayersList = () => {
+  const PlayersJoiningList = () => {
     const playerMap = players.map((player, idx) => (
       <li key={`player${idx}`}>
         {idx+1}: ~{player}~
@@ -41,7 +44,6 @@ const Game = ({roomId, players, socket, user}) => {
     return rotated;
   }
   const PlayerHands = () => {
-    console.log(playerCards);
     let rotatedPlayers = rotatePlayers();
     const playerHands = rotatedPlayers.map((player, idx) => {
       if (idx === 0) {
@@ -59,6 +61,7 @@ const Game = ({roomId, players, socket, user}) => {
             </div>
             <div className='playerName'>{player}</div>
             <div className='playerChips'>{playerCards[player].chips}</div>
+            <div className={playerCards[player].role ? 'role' : 'noRole'}>{playerCards[player].role}</div>
           </div>
         )
       } else {
@@ -70,20 +73,69 @@ const Game = ({roomId, players, socket, user}) => {
             </div>
             <div className='playerName'>{player}</div>
             <div className='playerChips'>{playerCards[player].chips}</div>
+            <div className='role'>{playerCards[player].role}</div>
           </div>
         )
       }
   });
     return (
-      <div>
+      <div id='playerHands'>
         {playerHands}
       </div>
     )
   };
+
+  const callHand = () => {
+    if (playersList[currentPlayerIdx] !== user) {
+      console.log('not your turn');
+    } else {
+      console.log('called hand')
+    }
+  };
+
+  const bet = (amount) => {
+    console.log('bet ', amount);
+  };
+
+  const PlayerControls = () => {
+    let classes = 'grayedOut';
+    if (playersList[currentPlayerIdx] === user) {
+      classes = ''
+    }
+    return (
+      <div className={classes} id='playerControls'>
+        <div>Fold</div>
+        <div onClick={() => callHand()}>Call</div>
+        <div>Raise</div>
+      </div>
+    )
+  };
+
   useEffect(() => {
-    socket.on(`start game ${roomId}`, (users) => {
-      setPlayerCards(users);
+    if (playersList && currentPlayerIdx && playerCards) {
+      const currentPlayer = playersList[currentPlayerIdx]
+      if (playersList[currentPlayerIdx] !== user) {
+        console.log('checking andnot your turn');
+      } else {
+        console.log('your turn');
+        console.log(currentPlayer, playerCards);
+        if (!playedBlinds && playerCards[currentPlayer].role === 'Bg') {
+          bet(200);
+          setPlayedBlinds(true);
+        } else if (!playedBlinds && playerCards[currentPlayer].role === 'Sm') {
+          bet(100);
+          setPlayedBlinds(true);
+        }
+      }
+    }
+  }, [currentPlayerIdx, playersList, playedBlinds, user, playerCards]);
+
+  useEffect(() => {
+    socket.on(`start game ${roomId}`, (users, serverPlayersList, serverCurrentPlayerIdx) => {
+      setPlayersList(serverPlayersList);
+      setCurrentPlayerIdx(serverCurrentPlayerIdx);
       setStarted(true);
+      setPlayerCards(users);
       // playAudio('newGame');
     });
   }, [socket, roomId]);
@@ -95,7 +147,7 @@ const Game = ({roomId, players, socket, user}) => {
         You can play with 2-5 players. <br />
         Current Players:  
       </h3>
-      <PlayersList/>
+      <PlayersJoiningList/>
       <div>
         <button onClick={() => {
           setStarted(true);
@@ -107,9 +159,12 @@ const Game = ({roomId, players, socket, user}) => {
   
   return (
     <div className="game">
-      Welcome to room {roomId}!
+      Welcome to room {roomId}!<br />
+      { started && playerCards ? 'Blinds: 100/200' : '' }<br/>
+      { started && playerCards ? `${playersList[currentPlayerIdx]}'s turn` : '' }
       { started && playerCards ? <div>
           <PlayerHands/>
+          <PlayerControls/>
         </div> : <StartModal />}
     </div>
   );

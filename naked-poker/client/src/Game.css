@@ -41,27 +41,41 @@
     display: flex;
     justify-content: center;
     flex-direction: column;
-    height: 24vh;
-    width: 28vw;
+    height: 21vh;
+    width: 27vw;
     background: #282c34;
     position: absolute;
+    border: 0.5vw solid black;
     color: white;
     text-align: center;
 }
 .playerSpace .cards{
     display: flex;
     justify-content: center;
+    padding-top: 3vh;
 }
 .playerSpace .red{
    color: red;
+}
+.playerSpace .role{
+    position: relative;
+    bottom: 19vh;
+    left: 1vw;
+    width: 30px;
+    border: 2px solid yellow;
+    border-radius: 30px;
+    font-size: 1rem;
+    text-align: center;
+}
+.playerSpace .noRole {
+    padding-top: 22px;
 }
 .playerSpace .hidden{
     background: linear-gradient(#1dd4ff, #ffe500);
 }
 .player1 {
-    left: 30vw;
+    left: 36vw;
     top: 46vh;
-    width: 40vw;
 }
 .player2 {
     top: 21vh;
@@ -74,6 +88,30 @@
 .player4 {
     right: 1vw;
     top: 21vh;
+}
+#playerControls {
+    left: 66vw;
+    top: 57vh;
+    position: absolute;
+    display: flex;
+}
+#playerControls div {
+    height: calc( 10vh - 4px );
+    width: calc( 10vw - 4px );
+    background: black;
+    border: 2px solid yellow;
+    color: white;
+    margin: 0 3px;
+    text-align: center;
+}
+#playerControls div:hover {
+    background: #2f048d;
+}
+#playerControls.grayedOut div {
+    background: #684545;
+    border: none;
+    height: 10vh;
+    width: 10vw;
 }
 @media screen and (max-width: 480px) {
     .game .modal h3 {
