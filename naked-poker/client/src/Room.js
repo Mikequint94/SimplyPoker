@@ -5,14 +5,16 @@ import Game from './Game.js';
 const io = require('socket.io-client');
 
 const Room = ({ match }) => {
-  // console.log(match)
-  const [username, setUsername] = useState('');
   const [socket, setSocket] = useState(null);
+  const [username, setUsername] = useState('');
   const [usernameReady, setUsernameReady] = useState(false);
+  
+
   const [allPlayers, setAllPlayers] = useState([]);
   const { roomId } = match.params;
   useEffect(() => {
     setSocket(io.connect(`${window.location.origin}?roomId=${roomId}`));
+
   }, [roomId]);
 
   const setUser = () => {
@@ -21,6 +23,13 @@ const Room = ({ match }) => {
       setUsernameReady(true);
     }
   };
+
+  useEffect(() => {
+    // for testing 
+    setTimeout(() => {
+      setUsername('Mike');
+   }, 300)
+ }, []);
 
   useEffect(() => {
     if (socket) {
@@ -32,7 +41,7 @@ const Room = ({ match }) => {
   
   return (
     <div className="room">
-      { usernameReady ? <Game roomId={roomId} socket={socket} user={username} players={allPlayers}/> : 
+      { socket && usernameReady ? <Game roomId={roomId} socket={socket} user={username} players={allPlayers}/> : 
         <div id="modal" className="modal">
           <h2>
             What is your name? 

@@ -15,40 +15,54 @@ app.get('*', (req, res) => {
   }
 });
 
-let rooms = {};
+let rooms = {'TEST': {
+  allColors: ['#E8AA14', '#FF5714', '#EA6ED7', '#99FF14', '#D4FFA1' ],
+  users: {
+    'Cailin': {
+      socketId: '12345',
+      color: '#6EEB83'
+     },
+    'Logurt': {
+      socketId: '098324923',
+      color: '#c07dff'
+     },
+    'Ali': {
+      socketId: '324234234',
+      color: '#E4FF1A'
+     }
+  }
+}};
 
-// let playerCards = {}; // ex. {'mike': 13, 'chy': 12}
 // let currentPlayer = '';
 // let currentPlayerIdx = -1;
-// let deck = [];
-// let startingCardNum = 13;
 
 
-// const createDeck = () => {
-//   let deck = [];
-//   const suits = ['♥', '♠', '♣', '♦'];
-//   const values = ['A', 2, 3, 4, 5, 6, 7, 8, 9, 10, 'J', 'Q', 'K'];
+const createDeck = () => {
+  let deck = [];
+  const suits = ['♥', '♠', '♣', '♦'];
+  const values = ['A', 2, 3, 4, 5, 6, 7, 8, 9, 10, 'J', 'Q', 'K'];
 
-//   for (let suit in suits) {
-//     for (let value in values) {
-//       deck.push(`${values[value]} ${suits[suit]}`);
-//     }
-//   }
-//   return deck;
-// };
-// const stackShuffle = () => {
-//   let count = deck.length;
-//   while(count) {
-//       deck.push(deck.splice(Math.floor(Math.random() * count), 1)[0]);
-//       count -= 1;
-//   }
-// };
-// const resetAndMakeDeck = () => {
-//   currentPlayer = '';
-//   currentPlayerIdx = -1;
-//   deck = createDeck();
-//   stackShuffle();
-// };
+  for (let suit in suits) {
+    for (let value in values) {
+      deck.push(`${values[value]} ${suits[suit]}`);
+    }
+  }
+  return deck;
+};
+const stackShuffle = (deck) => {
+  let count = deck.length;
+  while(count) {
+      deck.push(deck.splice(Math.floor(Math.random() * count), 1)[0]);
+      count -= 1;
+  }
+  return deck;
+};
+const resetAndMakeDeck = () => {
+  // currentPlayer = '';
+  // currentPlayerIdx = -1;
+  let deck = createDeck();
+  return stackShuffle(deck);
+};
 
 //shape of Rooms
 // rooms: {
@@ -57,7 +71,9 @@ let rooms = {};
     //  'users': {
       //   'Mike': {
         //     socketId: socket.id,
-        //     color: '#123456'
+        //     color: '#123456',
+        //     cards: ['A H', '5 D'],
+        //     chips: 10000
       //  }
   //   }
   // }
@@ -66,7 +82,6 @@ let rooms = {};
 io.on('connection', (socket) => {
   let user = null;
   const { roomId } = socket.handshake.query;
-  console.log(rooms);
   if (!rooms[roomId]) {
     rooms[roomId] = {
       allColors: ['#6EEB83', '#c07dff', '#E4FF1A', '#E8AA14', '#FF5714', '#EA6ED7', '#99FF14', '#D4FFA1' ],
@@ -74,7 +89,6 @@ io.on('connection', (socket) => {
     };
   }
   let room = rooms[roomId];
-  console.log(rooms)
   io.emit(`all users ${roomId}`, {users: Object.keys(room['users'])});
 
   socket.on(`set user ${roomId}`, (username) => {
@@ -100,13 +114,12 @@ io.on('connection', (socket) => {
   // });
 
   socket.on(`start game ${roomId}`, () => {
-    // playerCards = {}; 
-    // resetAndMakeDeck();
-    // gameColors = Object.assign({}, colors);
-    // Object.keys(gameColors).forEach((user) => {
-    //     playerCards[user] = cheatStarts[user] || startingCardNum;
-    // })
-    io.emit(`start game ${roomId}`);
+    const deck = resetAndMakeDeck();
+    Object.keys(room['users']).forEach(user => {
+      room['users'][user]['cards'] = deck.splice(0,2); 
+      room['users'][user]['chips'] = 10000; 
+    })
+    io.emit(`start game ${roomId}`, room['users']);
     io.emit(`chat message ${roomId}`, '~~~ ' + user + " has started a new game! ~~~", '#282c34');
   });
   // socket.on('pick from deck', function(){
@@ -153,9 +166,7 @@ io.on('connection', (socket) => {
   // });
 
   socket.on('disconnect', () => {
-    console.log(room);
     const disconnectedUser = Object.keys(room['users']).filter(user => room['users'][user]['socketId'] === socket.id);
-    console.log(disconnectedUser);
     delete room['users'][disconnectedUser];
 
     io.emit(`all users ${roomId}`, {users: Object.keys(room['users'])});
