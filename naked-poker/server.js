@@ -65,13 +65,15 @@ const resetAndMakeDeck = () => {
   // 'SUPF': {
   //   'allColors': ['color1', 'color2'],
   //   'allPlayers': ['mike', 'chy'],
+  //   'pot': 0,
     //  'users': {
       //   'Mike': {
         //     socketId: socket.id,
         //     color: '#123456',
         //     cards: ['A H', '5 D'],
         //     chips: 10000,
-        //     role: 'D'
+        //     role: 'D',
+        //     folded: true (or key not present)
       //  }
   //   }
   // }
@@ -79,7 +81,6 @@ const resetAndMakeDeck = () => {
 
 io.on('connection', (socket) => {
   let user = null;
-  let currentPlayerIdx = 1;
   
   const { roomId } = socket.handshake.query;
   if (!rooms[roomId]) {
@@ -105,34 +106,45 @@ io.on('connection', (socket) => {
     io.emit(`chat message ${roomId}`, user + " : " + chatMsg, room['users'][user]['color']);
   });
 
-  // socket.on(`typing ${roomId}`, (typer) => {
-  //   io.emit(`typing ${roomId}`, typer + " is typing...");
-  // });
-  
-  // socket.on(`stop typing ${roomId}`, (typer) => {
-  //   io.emit(`stop typing ${roomId}`, typer);
-  // });
-
   socket.on(`start game ${roomId}`, () => {
     const deck = resetAndMakeDeck();
     room['allPlayers'] = Object.keys(room['users']);
+    room['pot'] = 0;
     let roles;
     if (room['allPlayers'].length > 2) {
       roles = ['D','Sm','Bg'];
     } else {
       roles = ['D','Bg'];
     }
+    // TESTING ROLES to make me Sm
+    // for (let i = 0; i < 2; i++) {
+    //   room['allPlayers'].push(room['allPlayers'].shift());
+    // }
+    // END OF TESTING
+
     room['allPlayers'].forEach(user => {
       room['users'][user]['cards'] = deck.splice(0,2); 
       room['users'][user]['chips'] = 10000; 
       room['users'][user]['role'] = roles.shift(); 
     })
-    io.emit(`start game ${roomId}`, room['users'], room['allPlayers'], currentPlayerIdx);
+    io.emit(`start game ${roomId}`, room['users'], room.allPlayers[1] || room.allPlayers[0]);
     io.emit(`chat message ${roomId}`, '~~~ ' + user + " has started a new game! ~~~", '#282c34');
   });
-  // socket.on('pick from deck', function(){
-  //   io.emit('pick from deck');
-  // });
+  socket.on(`bet ${roomId}`, (user, amount, currentPlayer, stage = '') => {
+    room['pot'] += amount;
+    room['users'][user]['chips'] -= amount;
+    const currentPlayerIdx = room.allPlayers.indexOf(currentPlayer);
+    const nextPlayer = room.allPlayers[(currentPlayerIdx + 1) % room.allPlayers.length];
+    console.log(currentPlayer, nextPlayer);
+    io.emit(`update board ${roomId}`, room.users, room.pot, nextPlayer, stage);
+  });
+  socket.on(`fold ${roomId}`, (user, currentPlayer, stage = '') => {
+    room.allPlayers = room.allPlayers.filter(player => player !== user);
+    room.users[user].folded = true;
+    const currentPlayerIdx = room.allPlayers.indexOf(currentPlayer);
+    const nextPlayer = room.allPlayers[(currentPlayerIdx + 1) % room.allPlayers.length];
+    io.emit(`update board ${roomId}`, room.users, room.pot, nextPlayer, stage);
+  });
   // socket.on('flip card', function(targetId, selection){
   //   io.emit('flip card', targetId, selection);
   // });

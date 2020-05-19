@@ -70,15 +70,21 @@
 .playerSpace .noRole {
     padding-top: 22px;
 }
+.playerSpace.folded {
+    opacity: 50%;
+}
 .playerSpace .hidden{
     background: linear-gradient(#1dd4ff, #ffe500);
+}
+.playerSpace.folded .hidden{
+    background: black;
 }
 .player1 {
     left: 36vw;
     top: 46vh;
 }
 .player2 {
-    top: 21vh;
+    top: 23vh;
     left: 1vw;
 }
 .player3 {
@@ -87,7 +93,7 @@
 }
 .player4 {
     right: 1vw;
-    top: 21vh;
+    top: 23vh;
 }
 #playerControls {
     left: 66vw;
@@ -95,7 +101,7 @@
     position: absolute;
     display: flex;
 }
-#playerControls div {
+#playerControls .control {
     height: calc( 10vh - 4px );
     width: calc( 10vw - 4px );
     background: black;
@@ -113,6 +119,21 @@
     height: 10vh;
     width: 10vw;
 }
+#tableCards {
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+    height: 18vh;
+    width: 31vw;
+    background: #32432a;
+    position: absolute;
+    border: 0.5vw solid #595959;
+    color: white;
+    text-align: center;
+    left: 34vw;
+    top: 25vh;
+}    
+
 @media screen and (max-width: 480px) {
     .game .modal h3 {
         font-size: 1rem;

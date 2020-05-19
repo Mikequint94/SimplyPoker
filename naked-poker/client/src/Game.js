@@ -1,20 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import Slider from '@material-ui/core/Slider';
 import './Game.css';
 
 const Game = ({roomId, players, socket, user}) => {
-  const [started, setStarted] = useState(false);
   const [playerCards, setPlayerCards] = useState(false);
-  const [playersList, setPlayersList] = useState([]);
-  const [currentPlayerIdx, setCurrentPlayerIdx] = useState(0);
-  const [playedBlinds, setPlayedBlinds] = useState(false);
-
-  useEffect(() => {
-    socket.on(`start game ${roomId}`, (users) => {
-      setStarted(true);
-      setPlayerCards(users);
-      // playAudio('newGame');
-    });
-  }, [socket, roomId]);
+  const [stage, setStage] = useState(false);
+  const [currentPlayer, setCurrentPlayer] = useState('');
+  const [currentBet, setCurrentBet] = useState(200);
+  const [pot, setPot] = useState(0);
 
   const PlayersJoiningList = () => {
     const playerMap = players.map((player, idx) => (
@@ -35,6 +28,13 @@ const Game = ({roomId, players, socket, user}) => {
     }
     return classes;
   };
+  const getPlayerClass = (player, playerPosition) => {
+    let classes = `playerSpace player${playerPosition}`;
+    if (playerCards[player].folded) {
+      classes += ' folded';
+    }
+    return classes;
+  };
   const rotatePlayers = () => {
     const numRotates = players.indexOf(user);
     let rotated = players;
@@ -42,15 +42,22 @@ const Game = ({roomId, players, socket, user}) => {
       rotated.push(rotated.shift());
     }
     return rotated;
-  }
+  };
+  const playerPositionMapper = {
+    1: [1], // Just to keep game good for now and testing
+    2: [1,3],
+    3: [1,2,4],
+    4: [1,2,3,4]
+  };
   const PlayerHands = () => {
     let rotatedPlayers = rotatePlayers();
+    let playerPositions = playerPositionMapper[rotatedPlayers.length];
     const playerHands = rotatedPlayers.map((player, idx) => {
       if (idx === 0) {
         const firstCard = playerCards[player].cards[0];
         const secondCard = playerCards[player].cards[1];
         return(
-          <div className={`playerSpace player${idx+1}`} key={`player${idx}`}>
+          <div className={getPlayerClass(player, playerPositions[idx])} key={`player${idx}`}>
             <div className='cards'>
               <div className={getCardClass(firstCard)}>
                 {firstCard}
@@ -66,14 +73,14 @@ const Game = ({roomId, players, socket, user}) => {
         )
       } else {
         return(
-          <div className={`playerSpace player${idx+1}`} key={`player${idx}`}>
+          <div className={getPlayerClass(player, playerPositions[idx])} key={`player${idx}`}>
             <div className='cards'>
               <div className='card hidden'></div>
               <div className='card hidden'></div>
             </div>
             <div className='playerName'>{player}</div>
             <div className='playerChips'>{playerCards[player].chips}</div>
-            <div className='role'>{playerCards[player].role}</div>
+            <div className={playerCards[player].role ? 'role' : 'noRole'}>{playerCards[player].role}</div>
           </div>
         )
       }
@@ -86,59 +93,91 @@ const Game = ({roomId, players, socket, user}) => {
   };
 
   const callHand = () => {
-    if (playersList[currentPlayerIdx] !== user) {
+    if (currentPlayer !== user) {
       console.log('not your turn');
     } else {
       console.log('called hand')
+      socket.emit(`bet ${roomId}`, user, currentBet, currentPlayer);
     }
   };
-
-  const bet = (amount) => {
-    console.log('bet ', amount);
+  const foldHand = () => {
+    if (currentPlayer !== user) {
+      console.log('not your turn');
+    } else {
+      console.log('folded hand')
+      socket.emit(`fold ${roomId}`, user, currentPlayer);
+    }
   };
-
+  const raiseBet = (bet = '') => {
+    if (currentPlayer !== user) {
+      console.log('not your turn');
+    } else {
+      if (!bet) {
+        bet = currentBet*2;
+      }
+      setCurrentBet(bet);
+      console.log('raised hand to ', bet)
+      socket.emit(`bet ${roomId}`, user, bet, currentPlayer);
+    }
+  };
   const PlayerControls = () => {
     let classes = 'grayedOut';
-    if (playersList[currentPlayerIdx] === user) {
+    if (currentPlayer === user) {
       classes = ''
     }
+    let potentialBet = currentBet * 2;
     return (
       <div className={classes} id='playerControls'>
-        <div>Fold</div>
-        <div onClick={() => callHand()}>Call</div>
-        <div>Raise</div>
+        <div className='control' onClick={() => foldHand()}>Fold</div>
+        <div className='control' onClick={() => callHand()}>Call {currentBet}</div>
+        <div>
+          <div className='control' onClick={() => raiseBet()}>Raise {potentialBet}</div>
+          <Slider
+            defaultValue={currentBet * 2}
+            step={100}
+            marks
+            min={currentBet}
+            max={playerCards[user].chips}
+            valueLabelDisplay="auto"
+          />
+        </div>
+      </div>
+    )
+  };
+
+  //START HERE adding back to slider onChangeCommitted={(val) => //start here!  New variable just for this? hmm nah maybe just style better so no need}
+
+
+  const TableCards = () => {
+    return (
+      <div id='tableCards'>
+        <div className='pot'>Pot: {pot}</div>
       </div>
     )
   };
 
   useEffect(() => {
-    if (playersList && currentPlayerIdx && playerCards) {
-      const currentPlayer = playersList[currentPlayerIdx]
-      if (playersList[currentPlayerIdx] !== user) {
-        console.log('checking andnot your turn');
-      } else {
-        console.log('your turn');
-        console.log(currentPlayer, playerCards);
-        if (!playedBlinds && playerCards[currentPlayer].role === 'Bg') {
-          bet(200);
-          setPlayedBlinds(true);
-        } else if (!playedBlinds && playerCards[currentPlayer].role === 'Sm') {
-          bet(100);
-          setPlayedBlinds(true);
-        }
+    socket.on(`start game ${roomId}`, (sPlayerCards, sCurrentPlayer) => {
+      if (sCurrentPlayer === user) {
+        socket.emit(`bet ${roomId}`, user, 100, sCurrentPlayer, 'bigBlind');
       }
-    }
-  }, [currentPlayerIdx, playersList, playedBlinds, user, playerCards]);
-
-  useEffect(() => {
-    socket.on(`start game ${roomId}`, (users, serverPlayersList, serverCurrentPlayerIdx) => {
-      setPlayersList(serverPlayersList);
-      setCurrentPlayerIdx(serverCurrentPlayerIdx);
-      setStarted(true);
-      setPlayerCards(users);
+      setCurrentPlayer(sCurrentPlayer);
+      setPlayerCards(sPlayerCards);
+      setStage(true);
       // playAudio('newGame');
     });
-  }, [socket, roomId]);
+  }, [socket, roomId, user ]);
+  useEffect(() => {
+    socket.on(`update board ${roomId}`, (sPlayerCards, sPot, sCurrentPlayer, sStage) => {
+      if (sStage === 'bigBlind' && sCurrentPlayer === user) {
+        socket.emit(`bet ${roomId}`, user, 200, sCurrentPlayer);
+      }
+      setCurrentPlayer(sCurrentPlayer);
+      setPlayerCards(sPlayerCards);
+      setPot(sPot);
+      console.log(sStage, sCurrentPlayer)
+    });
+  }, [socket, roomId, user]);
 
   const StartModal = () => (
     <div id="modal" className="modal">
@@ -150,7 +189,6 @@ const Game = ({roomId, players, socket, user}) => {
       <PlayersJoiningList/>
       <div>
         <button onClick={() => {
-          setStarted(true);
           socket.emit(`start game ${roomId}`, user);
           }}>Start</button>
       </div>
@@ -160,9 +198,10 @@ const Game = ({roomId, players, socket, user}) => {
   return (
     <div className="game">
       Welcome to room {roomId}!<br />
-      { started && playerCards ? 'Blinds: 100/200' : '' }<br/>
-      { started && playerCards ? `${playersList[currentPlayerIdx]}'s turn` : '' }
-      { started && playerCards ? <div>
+      { stage && playerCards ? 'Blinds: 100/200' : '' }<br/>
+      { stage && playerCards ? `${currentPlayer}'s turn` : '' }
+      { stage && playerCards ? <div>
+          <TableCards/>
           <PlayerHands/>
           <PlayerControls/>
         </div> : <StartModal />}

@@ -31,7 +31,7 @@ const Room = ({ match }) => {
         setUsername('Mike');
       }, 300)
     }
- }, []);
+ }, [roomId]);
 
   useEffect(() => {
     if (socket) {
@@ -51,6 +51,7 @@ const Room = ({ match }) => {
           { socket ? <div>
             <input
               placeholder={'enter name'}
+              autoFocus
               type="text"
               name="username"
               maxLength="24"
@@ -62,7 +63,7 @@ const Room = ({ match }) => {
           </div> : <div>loading...</div>}
         </div> 
       }
-      { socket && usernameReady ? <Chat socket={socket} roomId={roomId} user={username}/> : null}
+      { socket && usernameReady ? <Chat socket={socket} roomId={roomId}/> : null}
     </div>
   );
 }
