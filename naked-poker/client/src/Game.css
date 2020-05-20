@@ -71,7 +71,7 @@
     padding-top: 22px;
 }
 .playerSpace.folded {
-    opacity: 50%;
+    opacity: 0.5;
 }
 .playerSpace .hidden{
     background: linear-gradient(#1dd4ff, #ffe500);
@@ -95,6 +95,19 @@
     right: 1vw;
     top: 23vh;
 }
+.playerSpace .roundBet div {
+    background: linear-gradient(45deg, #FFEB3B, #ff5b28);
+    color: black;
+    border-radius: 29px;
+    width: fit-content;
+    padding: 4px;
+    margin: 0 auto;
+}
+.playerSpace .roundBet {
+    width: 27vw;
+    position: absolute;
+    top: 20vh;
+}
 #playerControls {
     left: 66vw;
     top: 57vh;
@@ -110,7 +123,7 @@
     margin: 0 3px;
     text-align: center;
 }
-#playerControls div:hover {
+#playerControls .control:hover {
     background: #2f048d;
 }
 #playerControls.grayedOut div {
@@ -118,6 +131,9 @@
     border: none;
     height: 10vh;
     width: 10vw;
+}
+#playerControls.grayedOut div:hover {
+    background: #684545;
 }
 #tableCards {
     display: flex;

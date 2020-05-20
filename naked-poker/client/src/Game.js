@@ -8,6 +8,7 @@ const Game = ({roomId, players, socket, user}) => {
   const [currentPlayer, setCurrentPlayer] = useState('');
   const [currentBet, setCurrentBet] = useState(200);
   const [pot, setPot] = useState(0);
+  const [potentialBet, setPotentialBet] = useState(400);
 
   const PlayersJoiningList = () => {
     const playerMap = players.map((player, idx) => (
@@ -69,6 +70,9 @@ const Game = ({roomId, players, socket, user}) => {
             <div className='playerName'>{player}</div>
             <div className='playerChips'>{playerCards[player].chips}</div>
             <div className={playerCards[player].role ? 'role' : 'noRole'}>{playerCards[player].role}</div>
+            <div className='roundBet'>
+              <div>{playerCards[player].roundBet}</div>
+            </div>
           </div>
         )
       } else {
@@ -81,6 +85,9 @@ const Game = ({roomId, players, socket, user}) => {
             <div className='playerName'>{player}</div>
             <div className='playerChips'>{playerCards[player].chips}</div>
             <div className={playerCards[player].role ? 'role' : 'noRole'}>{playerCards[player].role}</div>
+            <div className='roundBet'>
+              <div>{playerCards[player].roundBet}</div>
+            </div>
           </div>
         )
       }
@@ -92,12 +99,12 @@ const Game = ({roomId, players, socket, user}) => {
     )
   };
 
-  const callHand = () => {
+  const callHand = (callBet) => {
     if (currentPlayer !== user) {
       console.log('not your turn');
     } else {
       console.log('called hand')
-      socket.emit(`bet ${roomId}`, user, currentBet, currentPlayer);
+      socket.emit(`bet ${roomId}`, user, callBet);
     }
   };
   const foldHand = () => {
@@ -105,19 +112,16 @@ const Game = ({roomId, players, socket, user}) => {
       console.log('not your turn');
     } else {
       console.log('folded hand')
-      socket.emit(`fold ${roomId}`, user, currentPlayer);
+      socket.emit(`fold ${roomId}`, user);
     }
   };
-  const raiseBet = (bet = '') => {
+  const raiseBet = (bet) => {
+    console.log(playerCards)
     if (currentPlayer !== user) {
       console.log('not your turn');
     } else {
-      if (!bet) {
-        bet = currentBet*2;
-      }
-      setCurrentBet(bet);
       console.log('raised hand to ', bet)
-      socket.emit(`bet ${roomId}`, user, bet, currentPlayer);
+      socket.emit(`bet ${roomId}`, user, bet - playerCards[user].roundBet, 'raise');
     }
   };
   const PlayerControls = () => {
@@ -125,28 +129,31 @@ const Game = ({roomId, players, socket, user}) => {
     if (currentPlayer === user) {
       classes = ''
     }
-    let potentialBet = currentBet * 2;
+    let callBet = currentBet - playerCards[user].roundBet;
+    let minRaise = currentBet + 100;
+    let maxRaise = playerCards[user].chips + playerCards[user].roundBet;
+    if (currentBet) {
+      // add rules around this confusing thing later. only the first bet per round the next has to double?
+    }
     return (
       <div className={classes} id='playerControls'>
         <div className='control' onClick={() => foldHand()}>Fold</div>
-        <div className='control' onClick={() => callHand()}>Call {currentBet}</div>
+        <div className='control' onClick={() => callHand(callBet)}>{callBet ? `Call ${callBet}` : 'Check'}</div>
         <div>
-          <div className='control' onClick={() => raiseBet()}>Raise {potentialBet}</div>
+          <div className='control' onClick={() => raiseBet(potentialBet)}>Raise to {potentialBet}</div>
           <Slider
-            defaultValue={currentBet * 2}
+            defaultValue={minRaise}
             step={100}
             marks
-            min={currentBet}
-            max={playerCards[user].chips}
+            min={minRaise}
+            max={maxRaise}
             valueLabelDisplay="auto"
+            onChangeCommitted={(e, val) => setPotentialBet(val)}
           />
         </div>
       </div>
     )
   };
-
-  //START HERE adding back to slider onChangeCommitted={(val) => //start here!  New variable just for this? hmm nah maybe just style better so no need}
-
 
   const TableCards = () => {
     return (
@@ -158,8 +165,10 @@ const Game = ({roomId, players, socket, user}) => {
 
   useEffect(() => {
     socket.on(`start game ${roomId}`, (sPlayerCards, sCurrentPlayer) => {
-      if (sCurrentPlayer === user) {
-        socket.emit(`bet ${roomId}`, user, 100, sCurrentPlayer, 'bigBlind');
+      if (sCurrentPlayer === user && sPlayerCards[user].role === 'Sm') {
+        socket.emit(`bet ${roomId}`, user, 100, 'bigBlind');
+      } else if (sCurrentPlayer === user) {
+        socket.emit(`bet ${roomId}`, user, 200, 'smallBlind');
       }
       setCurrentPlayer(sCurrentPlayer);
       setPlayerCards(sPlayerCards);
@@ -168,9 +177,20 @@ const Game = ({roomId, players, socket, user}) => {
     });
   }, [socket, roomId, user ]);
   useEffect(() => {
-    socket.on(`update board ${roomId}`, (sPlayerCards, sPot, sCurrentPlayer, sStage) => {
-      if (sStage === 'bigBlind' && sCurrentPlayer === user) {
-        socket.emit(`bet ${roomId}`, user, 200, sCurrentPlayer);
+    socket.on(`update board ${roomId}`, (sPlayerCards, sPot, sCurrentPlayer, sStage, raise) => {
+      if (sStage === 'raise') {
+        setCurrentBet(raise);
+        setPotentialBet(raise + 100);
+      } else if (sStage === 'bigBlind' && sCurrentPlayer === user) {
+        socket.emit(`bet ${roomId}`, user, 200, 'firstBet3P');
+      } else if (sStage === 'smallBlind' && sCurrentPlayer === user) {
+        setCurrentBet(200);
+        setPotentialBet(200 + 100);
+        socket.emit(`bet ${roomId}`, user, 100, 'firstBet2P');
+        setCurrentBet(raise);
+        setPotentialBet(raise + 100);
+      } else if (sStage === 'roundEnd') {
+        // console.log()
       }
       setCurrentPlayer(sCurrentPlayer);
       setPlayerCards(sPlayerCards);
@@ -193,7 +213,7 @@ const Game = ({roomId, players, socket, user}) => {
           }}>Start</button>
       </div>
     </div>
-  )
+  );
   
   return (
     <div className="game">

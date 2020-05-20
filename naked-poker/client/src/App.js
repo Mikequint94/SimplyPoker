@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Route } from "react-router-dom"
 import Home from "./Home"
 import Room from "./Room"
 
-function App() {
+const App = () => {  
   
   return (
       <Router>

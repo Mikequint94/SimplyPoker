@@ -66,12 +66,14 @@ const resetAndMakeDeck = () => {
   //   'allColors': ['color1', 'color2'],
   //   'allPlayers': ['mike', 'chy'],
   //   'pot': 0,
+  //   'lastBetter': 'mike'
     //  'users': {
       //   'Mike': {
         //     socketId: socket.id,
         //     color: '#123456',
         //     cards: ['A H', '5 D'],
         //     chips: 10000,
+        //     roundBet: 0
         //     role: 'D',
         //     folded: true (or key not present)
       //  }
@@ -96,7 +98,8 @@ io.on('connection', (socket) => {
     user = username;
     room['users'][user] = {};
     room['users'][user]['socketId'] = socket.id;
-    room['users'][user]['color'] = room['allColors'].splice(Math.floor(Math.random()*room['allColors'].length), 1);;
+    room['users'][user]['color'] = room['allColors'].splice(Math.floor(Math.random()*room['allColors'].length), 1);
+    room['users'][user]['roundBet'] = 0;
     io.emit(`all users ${roomId}`, {users: Object.keys(room['users'])});
     io.emit(`chat message ${roomId}`, user + " has joined the chat!", '#282c34');
   });
@@ -123,25 +126,38 @@ io.on('connection', (socket) => {
     // END OF TESTING
 
     room['allPlayers'].forEach(user => {
-      room['users'][user]['cards'] = deck.splice(0,2); 
-      room['users'][user]['chips'] = 10000; 
-      room['users'][user]['role'] = roles.shift(); 
+      room.users[user].cards = deck.splice(0,2); 
+      room.users[user].chips = 10000; 
+      room.users[user].role = roles.shift(); 
     })
-    io.emit(`start game ${roomId}`, room['users'], room.allPlayers[1] || room.allPlayers[0]);
+    io.emit(`start game ${roomId}`, room.users, room.allPlayers[1] || room.allPlayers[0]);
     io.emit(`chat message ${roomId}`, '~~~ ' + user + " has started a new game! ~~~", '#282c34');
   });
-  socket.on(`bet ${roomId}`, (user, amount, currentPlayer, stage = '') => {
-    room['pot'] += amount;
-    room['users'][user]['chips'] -= amount;
-    const currentPlayerIdx = room.allPlayers.indexOf(currentPlayer);
-    const nextPlayer = room.allPlayers[(currentPlayerIdx + 1) % room.allPlayers.length];
-    console.log(currentPlayer, nextPlayer);
-    io.emit(`update board ${roomId}`, room.users, room.pot, nextPlayer, stage);
+  socket.on(`bet ${roomId}`, (user, amount, stage = '') => {
+    room.pot += amount;
+    room.users[user].chips -= amount;
+    room.users[user].roundBet += amount;
+    const currentPlayerIdx = room.allPlayers.indexOf(user);
+    let nextPlayer = room.allPlayers[(currentPlayerIdx + 1) % room.allPlayers.length];
+    let raise = undefined;
+    if (stage === 'raise') {
+      raise = room.users[user].roundBet;
+      room.lastBetter = user;
+    } else if (stage === 'firstBet3P' || stage === 'smallBlind') {
+      raise = room.users[user].roundBet;
+      room.lastBetter = nextPlayer;
+    } else if (stage === 'firstBet2P') {
+      nextPlayer = user;
+    } else if (!stage && nextPlayer === room.lastBetter) {
+      stage = 'roundEnd';
+    }
+    console.log(room.lastBetter)
+    io.emit(`update board ${roomId}`, room.users, room.pot, nextPlayer, stage, raise);
   });
-  socket.on(`fold ${roomId}`, (user, currentPlayer, stage = '') => {
+  socket.on(`fold ${roomId}`, (user, stage = '') => {
     room.allPlayers = room.allPlayers.filter(player => player !== user);
     room.users[user].folded = true;
-    const currentPlayerIdx = room.allPlayers.indexOf(currentPlayer);
+    const currentPlayerIdx = room.allPlayers.indexOf(user);
     const nextPlayer = room.allPlayers[(currentPlayerIdx + 1) % room.allPlayers.length];
     io.emit(`update board ${roomId}`, room.users, room.pot, nextPlayer, stage);
   });
@@ -186,10 +202,10 @@ io.on('connection', (socket) => {
   // });
 
   socket.on('disconnect', () => {
-    const disconnectedUser = Object.keys(room['users']).filter(user => room['users'][user]['socketId'] === socket.id);
-    delete room['users'][disconnectedUser];
+    const disconnectedUser = Object.keys(room.users).filter(user => room.users[user].socketId === socket.id);
+    delete room.users[disconnectedUser];
 
-    io.emit(`all users ${roomId}`, {users: Object.keys(room['users'])});
+    io.emit(`all users ${roomId}`, {users: Object.keys(room.users)});
     if (user) {
       io.emit(`chat message ${roomId}`, user + " has left the chat.", '#282c34');
     }

@@ -1,17 +1,26 @@
 import React, { useState, useEffect } from 'react';
+import { useHistory } from "react-router-dom";
 import './Room.css';
 import Chat from './Chat.js';
 import Game from './Game.js';
 const io = require('socket.io-client');
 
 const Room = ({ match }) => {
+  let history = useHistory();
+  const { roomId } = match.params;
+  if (roomId.length !== 4) {
+    history.push(`/`)
+  }
+  if (roomId.toUpperCase() !== roomId) {
+    history.push(`/${roomId.toUpperCase()}`);
+  }
+
   const [socket, setSocket] = useState(null);
   const [username, setUsername] = useState('');
   const [usernameReady, setUsernameReady] = useState(false);
   
 
   const [allPlayers, setAllPlayers] = useState([]);
-  const { roomId } = match.params;
   useEffect(() => {
     setSocket(io.connect(`${window.location.origin}?roomId=${roomId}`));
 

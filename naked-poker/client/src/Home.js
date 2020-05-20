@@ -3,7 +3,7 @@ import { useHistory } from "react-router-dom";
 import logo from './media/cardsgif.gif';
 import './Home.css';
 
-function Home() {
+const Home = () => {
 
     let history = useHistory();
     const [room, setRoom] = useState('')
