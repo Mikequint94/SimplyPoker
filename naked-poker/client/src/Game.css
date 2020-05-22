@@ -34,7 +34,7 @@
     border: 2px solid black;
     padding: 5px;
     background: linear-gradient(white, #e19df7);
-    font-size: 1.52rem;
+    font-size: 1.56rem;
     color: black;
 }
 .playerSpace {
@@ -53,6 +53,17 @@
     display: flex;
     justify-content: center;
     padding-top: 3vh;
+}
+#tableCards .dealerCards{
+    display: flex;
+    padding: 1px 4px;
+    width: 320px;
+    margin: 1vh auto;
+    background: #0000001c;
+    height: 84px;
+}
+#tableCards .dealerCards .red{
+    color: red;
 }
 .playerSpace .red{
    color: red;
@@ -108,6 +119,9 @@
     position: absolute;
     top: 20vh;
 }
+.playerSpace .roundBet.noBet div {
+    display: none;
+}
 #playerControls {
     left: 66vw;
     top: 57vh;
@@ -126,13 +140,15 @@
 #playerControls .control:hover {
     background: #2f048d;
 }
-#playerControls.grayedOut div {
+#playerControls.grayedOut div,
+#playerControls .grayedOut {
     background: #684545;
     border: none;
     height: 10vh;
     width: 10vw;
 }
-#playerControls.grayedOut div:hover {
+#playerControls.grayedOut div:hover,
+#playerControls .grayedOut:hover {
     background: #684545;
 }
 #tableCards {
@@ -140,13 +156,13 @@
     justify-content: center;
     flex-direction: column;
     height: 18vh;
-    width: 31vw;
+    width: 36vw;
     background: #32432a;
     position: absolute;
     border: 0.5vw solid #595959;
     color: white;
     text-align: center;
-    left: 34vw;
+    left: 32vw;
     top: 25vh;
 }    
 

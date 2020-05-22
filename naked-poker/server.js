@@ -54,19 +54,56 @@ const stackShuffle = (deck) => {
   return deck;
 };
 const resetAndMakeDeck = () => {
-  // currentPlayer = '';
-  // currentPlayerIdx = -1;
   let deck = createDeck();
   return stackShuffle(deck);
 };
+const cardValueMapper = {
+  'J': 11,
+  'Q': 12,
+  'K': 13,
+  'A': 14
+};
+const cardSuitMapper = {
+  '♣': 1,
+  '♦': 2,
+  '♥': 4,
+  '♠': 8
+};
+const pokerHandRankings = {
+  'High Card': 1,
+  '1 Pair': 2,
+  '2 Pair': 3,
+  '3 of a Kind': 4,
+  'Straight': 5,
+  'Flush': 6,
+  'Full House': 7,
+  '4 of a Kind': 8,
+  'Straight Flush': 9,
+  'Royal Flush': 10
+}
+const pokerHands = ["4 of a Kind", "Straight Flush","Straight","Flush","High Card","1 Pair","2 Pair","Royal Flush", "3 of a Kind","Full House"];
+const evaluateHand = (cs, ss) => {
+  var v,i,o,s = 1 << cs[0] | 1 << cs[1] | 1 << cs[2] | 1 << cs[3] | 1 << cs[4];
+  for (i = -1, v = o = 0; i < 5; i++, o = Math.pow(2, cs[i] * 4)) {v += o * ((v / o & 15) + 1);}
+  v = v % 15 - ((s / (s & -s) == 31) || (s == 0x403c) ? 3 : 1);
+  v -= (ss[0] == (ss[1] | ss[2] | ss[3] | ss[4])) * ((s == 0x7c00) ? -5 : 1);
+  return pokerHands[v];
+}
+
+const combinations = (array) => {
+  return new Array(1 << array.length).fill().map(
+      (e1,i) => array.filter((e2, j) => i & 1 << j)).filter(a => a.length === 5);
+}
 
 //shape of Rooms
 // rooms: {
   // 'SUPF': {
   //   'allColors': ['color1', 'color2'],
-  //   'allPlayers': ['mike', 'chy'],
+  //   'allPlayers': ['mike', 'chy', 'ali'],
+  //   'roundPlayers': ['mike', 'chy'],
   //   'pot': 0,
-  //   'lastBetter': 'mike'
+  //   'lastBetter': 'mike',
+  //   'dealerCards: ['4 ♠', '2 ♦', 'Q ♣', 'K ♣', '6 ♠']
     //  'users': {
       //   'Mike': {
         //     socketId: socket.id,
@@ -88,57 +125,61 @@ io.on('connection', (socket) => {
   if (!rooms[roomId]) {
     rooms[roomId] = {
       allColors: ['#6EEB83', '#c07dff', '#E4FF1A', '#E8AA14', '#FF5714', '#EA6ED7', '#99FF14', '#D4FFA1' ],
-      users: {}
+      users: {},
+      allPlayers: []
     };
   }
   let room = rooms[roomId];
-  io.emit(`all users ${roomId}`, {users: Object.keys(room['users'])});
+  io.emit(`all users ${roomId}`, {users: Object.keys(room.users)});
 
   socket.on(`set user ${roomId}`, (username) => {
     user = username;
-    room['users'][user] = {};
-    room['users'][user]['socketId'] = socket.id;
-    room['users'][user]['color'] = room['allColors'].splice(Math.floor(Math.random()*room['allColors'].length), 1);
-    room['users'][user]['roundBet'] = 0;
-    io.emit(`all users ${roomId}`, {users: Object.keys(room['users'])});
+    room.allPlayers.push(user);
+    room.users[user] = {};
+    room.users[user].socketId = socket.id;
+    room.users[user].chips = 10000; 
+    room.users[user].color = room.allColors.splice(Math.floor(Math.random()*room.allColors.length), 1);
+    io.emit(`all users ${roomId}`, {users: Object.keys(room.users)});
     io.emit(`chat message ${roomId}`, user + " has joined the chat!", '#282c34');
   });
 
   socket.on(`chat message ${roomId}`, (chatMsg) => {
     console.log(room)
-    io.emit(`chat message ${roomId}`, user + " : " + chatMsg, room['users'][user]['color']);
+    io.emit(`chat message ${roomId}`, user + " : " + chatMsg, room.users[user].color);
   });
 
-  socket.on(`start game ${roomId}`, () => {
+  socket.on(`start game ${roomId}`, (firstGame = false) => {
     const deck = resetAndMakeDeck();
-    room['allPlayers'] = Object.keys(room['users']);
-    room['pot'] = 0;
+    room.roundPlayers = room.allPlayers.slice();
+    room.pot = 0;
+    room.dealerCards = deck.splice(0,5);
     let roles;
-    if (room['allPlayers'].length > 2) {
+    // rotate roles once each time
+    room.allPlayers.push(room.allPlayers.shift());
+    console.log(room.allPlayers, room.roundPlayers);
+    console.log(room.users);
+    if (room.roundPlayers.length > 2) {
       roles = ['D','Sm','Bg'];
     } else {
       roles = ['D','Bg'];
     }
-    // TESTING ROLES to make me Sm
-    // for (let i = 0; i < 2; i++) {
-    //   room['allPlayers'].push(room['allPlayers'].shift());
-    // }
-    // END OF TESTING
-
-    room['allPlayers'].forEach(user => {
+    room.roundPlayers.forEach(user => {
+      room.users[user].roundBet = 0;
       room.users[user].cards = deck.splice(0,2); 
-      room.users[user].chips = 10000; 
       room.users[user].role = roles.shift(); 
+      room.users[user].folded = false;
     })
-    io.emit(`start game ${roomId}`, room.users, room.allPlayers[1] || room.allPlayers[0]);
-    io.emit(`chat message ${roomId}`, '~~~ ' + user + " has started a new game! ~~~", '#282c34');
+    if (firstGame) {
+      io.emit(`chat message ${roomId}`, '~~~ ' + user + " has started a new game! ~~~", '#282c34');
+    }
+    io.emit(`start game ${roomId}`, room.users, room.roundPlayers[1] || room.roundPlayers[0]);
   });
   socket.on(`bet ${roomId}`, (user, amount, stage = '') => {
     room.pot += amount;
     room.users[user].chips -= amount;
     room.users[user].roundBet += amount;
-    const currentPlayerIdx = room.allPlayers.indexOf(user);
-    let nextPlayer = room.allPlayers[(currentPlayerIdx + 1) % room.allPlayers.length];
+    const currentPlayerIdx = room.roundPlayers.indexOf(user);
+    let nextPlayer = room.roundPlayers[(currentPlayerIdx + 1) % room.roundPlayers.length];
     let raise = undefined;
     if (stage === 'raise') {
       raise = room.users[user].roundBet;
@@ -150,62 +191,57 @@ io.on('connection', (socket) => {
       nextPlayer = user;
     } else if (!stage && nextPlayer === room.lastBetter) {
       stage = 'roundEnd';
+      room.roundPlayers.forEach(player => {
+        room.users[player].roundBet = 0;
+      });
+      io.emit(`flip card ${roomId}`, room.dealerCards, nextPlayer);
     }
-    console.log(room.lastBetter)
     io.emit(`update board ${roomId}`, room.users, room.pot, nextPlayer, stage, raise);
   });
   socket.on(`fold ${roomId}`, (user, stage = '') => {
-    room.allPlayers = room.allPlayers.filter(player => player !== user);
+    room.roundPlayers = room.roundPlayers.filter(player => player !== user);
     room.users[user].folded = true;
-    const currentPlayerIdx = room.allPlayers.indexOf(user);
-    const nextPlayer = room.allPlayers[(currentPlayerIdx + 1) % room.allPlayers.length];
+    const currentPlayerIdx = room.roundPlayers.indexOf(user);
+    const nextPlayer = room.roundPlayers[(currentPlayerIdx + 1) % room.roundPlayers.length];
+    if (room.roundPlayers.length === 1) {
+      const winner = room.roundPlayers[0];
+      room.users[winner].chips += room.pot;
+      io.emit(`chat message ${roomId}`, `${winner} won ${room.pot} this round as the last player standing.`, '#282c34');
+      room.pot = 0;
+      io.emit(`folded win ${roomId}`, room.users, room.pot, winner);
+    }
     io.emit(`update board ${roomId}`, room.users, room.pot, nextPlayer, stage);
   });
-  // socket.on('flip card', function(targetId, selection){
-  //   io.emit('flip card', targetId, selection);
-  // });
-  // socket.on('discard card', function(){
-  //   io.emit('discard card');
-  // });
-  // socket.on('start new round', function(){
-  //   resetAndMakeDeck();
-  //   io.emit('start new round', deck, gameColors, playerCards);
-  // });
-  // socket.on('win round', function(user){
-  //   playerCards[user] -= 1;
-  //   if (playerCards[user] === 0) {
-  //     io.emit('win game', user);
-  //   } else {
-  //     io.emit('win round', user);
-  //   }
-  // });
-  // socket.on('pick from discard', function(){
-  //   io.emit('pick from discard');
-  // });
-  // socket.on('next turn', function(startingUser){
-  //   const players = Object.keys(gameColors);
-  //   currentPlayerIdx = (currentPlayerIdx + 1) % players.length;
-  //   if (startingUser) {
-  //     currentPlayerIdx = players.indexOf(startingUser);
-  //   }
-  //   currentPlayer = players[currentPlayerIdx];
-  //   io.emit('next turn', currentPlayer);
-  // });
-
-  // socket.on('colorChange', function(userColor){
-  //   colors[userColor.user] = userColor.color;
-  //   if (gameColors[userColor.user]) {
-  //     gameColors[userColor.user] = userColor.color;
-  //   }
-  //   io.emit('all users', {users: Object.values(people), color: colors});
-  //   io.emit('change board color', gameColors);
-  // });
+  socket.on(`calculate win ${roomId}`, () =>{
+    let playersBestRank = [];
+    room.roundPlayers.forEach(player => {
+      console.log('$$$', player, '$$$')
+      const sevenCards = room.dealerCards.concat(room.users[player].cards);
+      const fiveCardCombos = combinations(sevenCards);
+      let bestRank = 0;
+      let bestHands = [];
+      fiveCardCombos.forEach(hand => {
+        const allCardsCS = hand.map(card => cardValueMapper[card[0]] || card[0]);
+        const allCardsSS = hand.map(card => cardSuitMapper[card[2]]);
+        let handRank = evaluateHand(allCardsCS, allCardsSS);
+        if (pokerHandRankings[handRank] > bestRank) {
+          bestRank = pokerHandRankings[handRank];
+          bestHands = [allCardsCS];
+        } else if (pokerHandRankings[handRank] === bestRank) {
+          bestHands.push(allCardsCS);
+        }
+      })
+      playersBestRank.push(bestRank);
+    })
+    console.log(playersBestRank);
+  });
 
   socket.on('disconnect', () => {
     const disconnectedUser = Object.keys(room.users).filter(user => room.users[user].socketId === socket.id);
     delete room.users[disconnectedUser];
+    room.allPlayers = room.allPlayers.filter(player => player !== disconnectedUser[0]);
 
-    io.emit(`all users ${roomId}`, {users: Object.keys(room.users)});
+    io.emit(`all users ${roomId}`, {users: room.allPlayers});
     if (user) {
       io.emit(`chat message ${roomId}`, user + " has left the chat.", '#282c34');
     }
