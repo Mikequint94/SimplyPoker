@@ -72,8 +72,8 @@ const Game = ({roomId, players, socket, user}) => {
         <div className='playerName'>{player}</div>
         <div className='playerChips'>{playerCards[player].chips}</div>
         <div className={playerCards[player].role ? 'role' : 'noRole'}>{playerCards[player].role}</div>
-        <div className={playerCards[player].roundBet ? 'roundBet' : 'roundBet noBet'}>
-          <div>{playerCards[player].roundBet}</div>
+        <div className={(playerCards[player].roundBet || playerCards[player].handCombo) ? 'roundBet' : 'roundBet noBet'}>
+          <div>{playerCards[player].roundBet || playerCards[player].handCombo}</div>
         </div>
       </div>
     );
@@ -169,6 +169,7 @@ const Game = ({roomId, players, socket, user}) => {
       if (sCurrentPlayer === user && sPlayerCards[user].role === 'Sm') {
         socket.emit(`bet ${roomId}`, user, smallBlind, 'bigBlind');
       } else if (sCurrentPlayer === user) {
+        console.log(user, ' big blind')
         socket.emit(`bet ${roomId}`, user, bigBlind, 'smallBlind');
       }
       setDealerCards([]);
@@ -188,11 +189,12 @@ const Game = ({roomId, players, socket, user}) => {
       } else if (sStage === 'bigBlind' && sCurrentPlayer === user) {
         socket.emit(`bet ${roomId}`, user, bigBlind, 'firstBet3P');
       } else if (sStage === 'smallBlind' && sCurrentPlayer === user) {
-        setCurrentBet(bigBlind);
-        setPotentialBet(bigBlind * 2);
+        // setCurrentBet(bigBlind);
+        // setPotentialBet(bigBlind * 2);
+        console.log(user, ' betting small blind')
         socket.emit(`bet ${roomId}`, user, smallBlind, 'firstBet2P');
-        setCurrentBet(raise);
-        setPotentialBet(raise + bigBlind);
+        // setCurrentBet(raise);
+        // setPotentialBet(raise + bigBlind);
       } else if (sStage === 'roundEnd') {
         setCurrentBet(0);
         setPotentialBet(bigBlind);
@@ -200,8 +202,13 @@ const Game = ({roomId, players, socket, user}) => {
       setCurrentPlayer(sCurrentPlayer);
       setPlayerCards(sPlayerCards);
       setPot(sPot);
+      //Testing
+      // if (sCurrentPlayer === user && (sStage === 'raise' || !sStage)) {
+      //   let callBet = raise || currentBet - sPlayerCards[user].roundBet;
+      //   socket.emit(`bet ${roomId}`, user, callBet);
+      // };
     });
-  }, [socket, roomId, user, bigBlind]);
+  }, [socket, roomId, user, bigBlind, currentBet]);
   useEffect(() => {
     socket.on(`flip card ${roomId}`, (sDealerCards, nextPlayer) => {
       if (dealerCards.length === 5) {
@@ -212,20 +219,20 @@ const Game = ({roomId, players, socket, user}) => {
         }
       }
       if (!dealerCards.length) {
-        setDealerCards(sDealerCards.slice(0, 3));
+        setDealerCards(sDealerCards.slice(0, 5)); //changed from 3 to 5 for testing
       } else {
         setDealerCards(sDealerCards.slice(0, dealerCards.length+1));
       }
     });
-  }, [socket, roomId, dealerCards.length]);
+  }, [socket, roomId, dealerCards.length, user]);
   useEffect(() => {
-    socket.on(`folded win ${roomId}`, (sPlayerCards, sPot, winner) => {
+    socket.on(`win ${roomId}`, (sPlayerCards, sPot, winner) => {
       setCurrentPlayer('');
       setPlayerCards(sPlayerCards);
       setPot(sPot);
       if (user === winner) {
         socket.emit(`start game ${roomId}`);
-      }
+      };
     });
   }, [socket, roomId, user]);
 
