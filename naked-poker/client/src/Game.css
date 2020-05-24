@@ -84,6 +84,10 @@
 .playerSpace.folded {
     opacity: 0.5;
 }
+.playerSpace.winner {
+    border-color: #c4ff3b;
+    box-shadow: 0em 0px 1em 5px #FFEB3B;
+}
 .playerSpace .hidden{
     background: linear-gradient(#1dd4ff, #ffe500);
 }
@@ -127,6 +131,9 @@
     top: 57vh;
     position: absolute;
     display: flex;
+}
+#playerControls.folded {
+    opacity: 0.5
 }
 #playerControls .control {
     height: calc( 10vh - 4px );

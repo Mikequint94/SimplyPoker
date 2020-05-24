@@ -132,6 +132,29 @@ const findWinner = (overallBestHands, bestPlayers, bestCombo) => {
     }
   }
 };
+// console.log(findWinner(
+//   [
+//     [
+//       [ '8', '4', '6', '9', '8' ],
+//       [ '8', '4', '6', '13', '8' ],
+//       [ '8', '4', '9', '13', '8' ],
+//       [ '8', '6', '9', '13', '8' ],
+//       [ '8', '4', '6', '2', '8' ],
+//       [ '8', '4', '9', '2', '8' ],
+//       [ '8', '6', '9', '2', '8' ],
+//       [ '8', '4', '13', '2', '8' ],
+//       [ '8', '6', '13', '2', '8' ],
+//       [ '8', '9', '13', '2', '8' ]
+//     ],
+//     [
+//       [ '9', '4', '6', '9', '8' ],
+//       [ '9', '4', '9', '13', '8' ],
+//       [ '9', '6', '9', '13', '8' ],
+//       [ '9', '4', '9', '2', '8' ],
+//       [ '9', '6', '9', '2', '8' ],
+//       [ '9', '9', '13', '2', '8' ]
+//     ]
+//   ], ['mike','chy'], '1 Pair'))
 // console.log(findWinner([[['4','6','6','8','8']],[['4','8','6','3','4'],['4','8','6','8','12']]], ['mike','chy'], '1 Pair'))
 // console.log(findWinner([[['4','6','6','8','8']],[['5','6','6','3','5'],['8','2','2','8','9']]], ['mike','chy'], '2 Pair'))
 
@@ -152,7 +175,7 @@ const findWinner = (overallBestHands, bestPlayers, bestCombo) => {
         //     chips: 10000,
         //     roundBet: 0
         //     role: 'D',
-        //     folded: true (or key not present)
+        //     folded: true || false
       //  }
   //   }
   // }
@@ -160,6 +183,7 @@ const findWinner = (overallBestHands, bestPlayers, bestCombo) => {
 
 io.on('connection', (socket) => {
   let user = null;
+  let flippedCards = 0;
   
   const { roomId } = socket.handshake.query;
   if (!rooms[roomId]) {
@@ -190,6 +214,7 @@ io.on('connection', (socket) => {
 
   socket.on(`start game ${roomId}`, (firstGame = false) => {
     const deck = resetAndMakeDeck();
+    flippedCards = 0;
     room.roundPlayers = room.allPlayers.slice();
     room.pot = 0;
     room.dealerCards = deck.splice(0,5);
@@ -207,6 +232,7 @@ io.on('connection', (socket) => {
       room.users[user].cards = deck.splice(0,2); 
       room.users[user].role = roles.shift() || ''; 
       room.users[user].folded = false;
+      room.users[user].winner = false;
       room.users[user].handCombo = '';
     })
     console.log(room.users);
@@ -216,7 +242,7 @@ io.on('connection', (socket) => {
     } else {
       setTimeout(() => {
         io.emit(`start game ${roomId}`, room.users, room.roundPlayers[1] || room.roundPlayers[0]);
-      }, 3500);
+      }, 4500);
     }
   });
   socket.on(`bet ${roomId}`, (user, amount, stage = '') => {
@@ -240,7 +266,18 @@ io.on('connection', (socket) => {
       room.roundPlayers.forEach(player => {
         room.users[player].roundBet = 0;
       });
-      io.emit(`flip card ${roomId}`, room.dealerCards, nextPlayer);
+      if (!flippedCards) {
+        io.emit(`flip card ${roomId}`, room.dealerCards.slice(0,3), nextPlayer);
+        flippedCards = 3;
+      } else if (flippedCards === 3) {
+        io.emit(`flip card ${roomId}`, room.dealerCards.slice(0,4), nextPlayer);
+        flippedCards = 4;
+      } else if (flippedCards === 4) {
+        io.emit(`flip card ${roomId}`, room.dealerCards, nextPlayer);
+        flippedCards = 5;
+      } else {
+        io.emit(`flip card ${roomId}`, 'done', nextPlayer);
+      }
     }
     io.emit(`update board ${roomId}`, room.users, room.pot, nextPlayer, stage, raise);
   });
@@ -254,11 +291,12 @@ io.on('connection', (socket) => {
     if (room.lastBetter = user) {
       room.lastBetter = nextPlayer;
     }
-    // maybe bugs here on play order after a fold check for 2P and 3+P!
+    // maybe bugs here on play order after a fold check for 3+P!
     console.log(nextPlayer);
     if (room.roundPlayers.length === 1) {
       const winner = room.roundPlayers[0];
       room.users[winner].chips += room.pot;
+      room.users[winner].winner = true;
       io.emit(`chat message ${roomId}`, `${winner} won ${room.pot} this round as the last player standing.`, '#282c34');
       room.pot = 0;
       io.emit(`win ${roomId}`, room.users, room.pot, winner);
@@ -296,8 +334,12 @@ io.on('connection', (socket) => {
       }
       room.users[player].handCombo = handRankMapper[bestRank];
     })
-    let winner = findWinner(overallBestHands, bestPlayers, handRankMapper[overallBestRank]) || 'cant determine yet sry';
+    console.log(overallBestHands)
+    console.log(bestPlayers)
+    console.log(handRankMapper[overallBestRank]);
+    let winner = findWinner(overallBestHands, bestPlayers, handRankMapper[overallBestRank]) || bestPlayers[0]; //just doing this for testing
     room.users[winner].chips += room.pot;
+    room.users[winner].winner = true;
     io.emit(`chat message ${roomId}`, `${winner} won ${room.pot} this round with a ${room.users[winner].handCombo}!`, '#282c34');
     room.pot = 0;
     io.emit(`win ${roomId}`, room.users, room.pot, winner);
