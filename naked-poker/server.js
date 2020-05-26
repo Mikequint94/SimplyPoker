@@ -158,6 +158,9 @@ const findWinner = (overallBestHands, bestPlayers, bestCombo) => {
 // console.log(findWinner([[['4','6','6','8','8']],[['4','8','6','3','4'],['4','8','6','8','12']]], ['mike','chy'], '1 Pair'))
 // console.log(findWinner([[['4','6','6','8','8']],[['5','6','6','3','5'],['8','2','2','8','9']]], ['mike','chy'], '2 Pair'))
 
+let disconnectTimeOut;
+let disconnectedUser = [];
+
 //shape of Rooms
 // rooms: {
   // 'SUPF': {
@@ -166,7 +169,10 @@ const findWinner = (overallBestHands, bestPlayers, bestCombo) => {
   //   'roundPlayers': ['mike', 'chy'],
   //   'pot': 0,
   //   'lastBetter': 'mike',
-  //   'dealerCards: ['4 ♠', '2 ♦', 'Q ♣', 'K ♣', '6 ♠']
+  //   'currentPlayer': 'ali',
+  //   'currentBet': 600,
+  //   'smallBlind': 100,
+  //   'dealerCards': ['4 ♠', '2 ♦', 'Q ♣', 'K ♣', '6 ♠'],
     //  'users': {
       //   'Mike': {
         //     socketId: socket.id,
@@ -183,28 +189,51 @@ const findWinner = (overallBestHands, bestPlayers, bestCombo) => {
 
 io.on('connection', (socket) => {
   let user = null;
-  let flippedCards = 0;
-  
   const { roomId } = socket.handshake.query;
   if (!rooms[roomId]) {
     rooms[roomId] = {
       allColors: ['#6EEB83', '#c07dff', '#E4FF1A', '#E8AA14', '#FF5714', '#EA6ED7', '#99FF14', '#D4FFA1' ],
       users: {},
-      allPlayers: []
+      allPlayers: [],
+      smallBlind: 100
     };
   }
-  let room = rooms[roomId];
-  io.emit(`all users ${roomId}`, {users: Object.keys(room.users)});
+  let room = rooms[roomId];  
+  
+  io.emit(`all users ${roomId}`, Object.keys(room.users).filter(player => player !== disconnectedUser[0]));
 
   socket.on(`set user ${roomId}`, (username) => {
     user = username;
-    room.allPlayers.push(user);
-    room.users[user] = {};
-    room.users[user].socketId = socket.id;
-    room.users[user].chips = 10000; 
-    room.users[user].color = room.allColors.splice(Math.floor(Math.random()*room.allColors.length), 1);
-    io.emit(`all users ${roomId}`, {users: Object.keys(room.users)});
-    io.emit(`chat message ${roomId}`, user + " has joined the chat!", '#282c34');
+    if (user === disconnectedUser[0]) {
+      clearTimeout(disconnectTimeOut);
+      disconnectedUser = [];
+    }
+    if (!rooms[roomId]) {
+      rooms[roomId] = {
+        allColors: ['#6EEB83', '#c07dff', '#E4FF1A', '#E8AA14', '#FF5714', '#EA6ED7', '#99FF14', '#D4FFA1' ],
+        users: {},
+        allPlayers: [],
+        smallBlind: 100
+      };
+    }
+    if (!room.roundPlayers) {
+      room.allPlayers.push(user);
+      room.users[user] = {};
+      room.users[user].socketId = socket.id;
+      room.users[user].chips = 10000; 
+      room.users[user].color = room.allColors.splice(Math.floor(Math.random()*room.allColors.length), 1);
+      io.emit(`chat message ${roomId}`, user + " has joined the chat!", '#282c34');
+    } else {
+      if (!room.users[user]) {
+        console.log(user, ' cant join in an active game. thy can watch?')
+        io.emit(`rejoin game ${roomId}`, user, room.users, room.pot, room.currentPlayer, room.dealerCards, room.currentBet, room.smallBlind);
+        return;
+      };
+      room.users[user].socketId = socket.id;
+      io.emit(`chat message ${roomId}`, user + " has rejoined the chat :0", '#282c34');
+      io.emit(`rejoin game ${roomId}`, user, room.users, room.pot, room.currentPlayer, room.dealerCards, room.currentBet, room.smallBlind);
+    }
+    io.emit(`all users ${roomId}`, Object.keys(room.users));
   });
 
   socket.on(`chat message ${roomId}`, (chatMsg) => {
@@ -213,15 +242,15 @@ io.on('connection', (socket) => {
   });
 
   socket.on(`start game ${roomId}`, (firstGame = false) => {
-    const deck = resetAndMakeDeck();
-    flippedCards = 0;
+    room.deck = resetAndMakeDeck();
     room.roundPlayers = room.allPlayers.slice();
     room.pot = 0;
-    room.dealerCards = deck.splice(0,5);
+    room.dealerCards = [];
+    room.currentBet = room.smallBlind * 2;
     let roles;
     // rotate roles once each time
     room.allPlayers.push(room.allPlayers.shift());
-    console.log(room.allPlayers, room.roundPlayers);
+    room.currentPlayer = room.roundPlayers[1] || room.roundPlayers[0];
     if (room.roundPlayers.length > 2) {
       roles = ['D','Sm','Bg'];
     } else {
@@ -229,7 +258,7 @@ io.on('connection', (socket) => {
     }
     room.roundPlayers.forEach(user => {
       room.users[user].roundBet = 0;
-      room.users[user].cards = deck.splice(0,2); 
+      room.users[user].cards = room.deck.splice(0,2); 
       room.users[user].role = roles.shift() || ''; 
       room.users[user].folded = false;
       room.users[user].winner = false;
@@ -238,10 +267,10 @@ io.on('connection', (socket) => {
     console.log(room.users);
     if (firstGame) {
       io.emit(`chat message ${roomId}`, '~~~ ' + user + " has started a new game! ~~~", '#282c34');
-      io.emit(`start game ${roomId}`, room.users, room.roundPlayers[1] || room.roundPlayers[0]);
+      io.emit(`start game ${roomId}`, room.users, room.currentPlayer, room.smallBlind);
     } else {
       setTimeout(() => {
-        io.emit(`start game ${roomId}`, room.users, room.roundPlayers[1] || room.roundPlayers[0]);
+        io.emit(`start game ${roomId}`, room.users, room.currentPlayer, room.smallBlind);
       }, 4500);
     }
   });
@@ -251,35 +280,43 @@ io.on('connection', (socket) => {
     room.users[user].chips -= amount;
     room.users[user].roundBet += amount;
     const currentPlayerIdx = room.roundPlayers.indexOf(user);
-    let nextPlayer = room.roundPlayers[(currentPlayerIdx + 1) % room.roundPlayers.length];
-    let raise = undefined;
+    room.currentPlayer = room.roundPlayers[(currentPlayerIdx + 1) % room.roundPlayers.length];
     if (stage === 'raise') {
-      raise = room.users[user].roundBet;
       room.lastBetter = user;
+      room.currentBet = room.users[user].roundBet;
     } else if (stage === 'firstBet3P' || stage === 'smallBlind') {
-      raise = room.users[user].roundBet;
-      room.lastBetter = nextPlayer;
+      room.currentBet = room.users[user].roundBet;
+      room.lastBetter = room.currentPlayer;
     } else if (stage === 'firstBet2P') {
-      nextPlayer = user;
-    } else if (!stage && nextPlayer === room.lastBetter) {
+      room.currentPlayer = user;
+    } else if (!stage && room.currentPlayer === room.lastBetter) {
       stage = 'roundEnd';
       room.roundPlayers.forEach(player => {
         room.users[player].roundBet = 0;
       });
-      if (!flippedCards) {
-        io.emit(`flip card ${roomId}`, room.dealerCards.slice(0,3), nextPlayer);
-        flippedCards = 3;
-      } else if (flippedCards === 3) {
-        io.emit(`flip card ${roomId}`, room.dealerCards.slice(0,4), nextPlayer);
-        flippedCards = 4;
-      } else if (flippedCards === 4) {
-        io.emit(`flip card ${roomId}`, room.dealerCards, nextPlayer);
-        flippedCards = 5;
-      } else {
-        io.emit(`flip card ${roomId}`, 'done', nextPlayer);
+      if (!room.dealerCards.length) {
+        // room.dealerCards = room.deck.splice(0,3);
+        room.dealerCards = [...room.dealerCards, room.deck.pop()];
+        io.emit(`flip card ${roomId}`, room.dealerCards, room.currentPlayer);
+        setTimeout(() => {
+          room.dealerCards = [...room.dealerCards, room.deck.pop()];
+          io.emit(`flip card ${roomId}`, room.dealerCards, room.currentPlayer);
+        }, 500);
+        setTimeout(() => {
+          room.dealerCards = [...room.dealerCards, room.deck.pop()];
+          io.emit(`flip card ${roomId}`, room.dealerCards, room.currentPlayer);
+        }, 1000);
+      } else if (room.dealerCards.length === 3) {
+        room.dealerCards = [...room.dealerCards, room.deck.pop()];
+        io.emit(`flip card ${roomId}`, room.dealerCards, room.currentPlayer);
+      } else if (room.dealerCards.length === 4) {
+        room.dealerCards = [...room.dealerCards, room.deck.pop()];
+        io.emit(`flip card ${roomId}`, room.dealerCards, room.currentPlayer);
+      } else if (room.dealerCards.length === 5) {
+        io.emit(`flip card ${roomId}`, 'done', room.currentPlayer);
       }
     }
-    io.emit(`update board ${roomId}`, room.users, room.pot, nextPlayer, stage, raise);
+    io.emit(`update board ${roomId}`, room.users, room.pot, room.currentPlayer, stage, room.currentBet, room.smallBlind);
   });
   socket.on(`fold ${roomId}`, (user, stage = '') => {
     console.log(room.roundPlayers)
@@ -287,12 +324,12 @@ io.on('connection', (socket) => {
     room.users[user].folded = true;
     console.log(room.roundPlayers, user)
     const currentPlayerIdx = room.roundPlayers.indexOf(user);
-    const nextPlayer = room.roundPlayers[(currentPlayerIdx + 1) % room.roundPlayers.length];
+    room.currentPlayer = room.roundPlayers[(currentPlayerIdx + 1) % room.roundPlayers.length];
     if (room.lastBetter = user) {
-      room.lastBetter = nextPlayer;
+      room.lastBetter = room.currentPlayer;
     }
     // maybe bugs here on play order after a fold check for 3+P!
-    console.log(nextPlayer);
+    console.log(room.currentPlayer);
     if (room.roundPlayers.length === 1) {
       const winner = room.roundPlayers[0];
       room.users[winner].chips += room.pot;
@@ -301,7 +338,7 @@ io.on('connection', (socket) => {
       room.pot = 0;
       io.emit(`win ${roomId}`, room.users, room.pot, winner);
     }
-    io.emit(`update board ${roomId}`, room.users, room.pot, nextPlayer, stage);
+    io.emit(`update board ${roomId}`, room.users, room.pot, room.currentPlayer, stage);
   });
   socket.on(`calculate win ${roomId}`, () =>{
     let overallBestHands = [];
@@ -347,13 +384,37 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    const disconnectedUser = Object.keys(room.users).filter(user => room.users[user].socketId === socket.id);
-    delete room.users[disconnectedUser];
-    room.allPlayers = room.allPlayers.filter(player => player !== disconnectedUser[0]);
-
-    io.emit(`all users ${roomId}`, {users: room.allPlayers});
-    if (user) {
-      io.emit(`chat message ${roomId}`, user + " has left the chat.", '#282c34');
+    if (!user) {return;}
+    if (room.roundPlayers && room.roundPlayers.length >= 2) {
+      disconnectedUser = Object.keys(room.users).filter(user => room.users[user].socketId === socket.id);
+      console.log(disconnectedUser, ' left, giving 10 sex')
+      disconnectTimeOut = setTimeout(() => {
+        delete room.users[disconnectedUser];
+        room.allPlayers = room.allPlayers.filter(player => player !== disconnectedUser[0]);
+        if (room.currentPlayer === disconnectedUser) {
+          const currentPlayerIdx = room.roundPlayers.indexOf(disconnectedUser);
+          room.currentPlayer = room.roundPlayers[(currentPlayerIdx + 1) % room.roundPlayers.length];      
+          io.emit(`disconnected player ${roomId}`, room.currentPlayer);
+          console.log('disconnected ', disconnectedUser);
+        }
+        if (room.lastBetter === disconnectedUser) {
+          room.lastBetter = room.currentPlayer;
+        }
+        room.roundPlayers = room.roundPlayers.filter(player => player !== disconnectedUser[0]);
+        io.emit(`all users ${roomId}`, room.allPlayers);
+      }, 10000);
+      
+      if (user) {
+        io.emit(`chat message ${roomId}`, user + " has left the chat.  If they do not rejoin within 15 seconds, they will be booted", '#282c34');
+      }
+    } else if (room.roundPlayers && room.roundPlayers.length === 1) {
+      console.log('deleting roomId')
+      delete rooms[roomId];
+    } else {
+      tempDisconnectedUser = Object.keys(room.users).filter(user => room.users[user].socketId === socket.id);
+      delete room.users[tempDisconnectedUser];
+      room.allPlayers = room.allPlayers.filter(player => player !== tempDisconnectedUser[0]);
+      io.emit(`all users ${roomId}`, room.allPlayers);
     }
   });
 });

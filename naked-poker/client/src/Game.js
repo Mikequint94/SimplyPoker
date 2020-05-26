@@ -2,16 +2,31 @@ import React, { useState, useEffect } from 'react';
 import Slider from '@material-ui/core/Slider';
 import './Game.css';
 
-const Game = ({roomId, players, socket, user}) => {
-  const smallBlind = 100;
-  const bigBlind = 2 * smallBlind;
-  const [playerCards, setPlayerCards] = useState(false);
+const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
+  // const smallBlind = 100;
+  // const bigBlind = 2 * smallBlind;
+  const [playerInfo, setPlayerInfo] = useState(false);
   const [dealerCards, setDealerCards] = useState([]);
   const [stage, setStage] = useState(false);
   const [currentPlayer, setCurrentPlayer] = useState('');
-  const [currentBet, setCurrentBet] = useState(bigBlind);
+  const [currentBet, setCurrentBet] = useState(0);
+  const [smallBlind, setSmallBlind] = useState(0);
   const [pot, setPot] = useState(0);
-  const [potentialBet, setPotentialBet] = useState(2 * bigBlind);
+  const [potentialBet, setPotentialBet] = useState(0);
+  const [errorMessage, setErrorMessage] = useState(false);
+
+  // const [tempUser, tempSetUser] = useState('');
+  const [user, setUser] = useState('');
+
+  const setUserName = () => {
+    if (players.indexOf(user) > -1) {
+      setErrorMessage('Enter a unique player name');
+    } else if (user) {  
+      socket.emit(`set user ${roomId}`, user);
+      setErrorMessage(false);
+      setUsernameReady(true);
+    }
+  };
 
   const PlayersJoiningList = () => {
     const playerMap = players.map((player, idx) => (
@@ -33,19 +48,22 @@ const Game = ({roomId, players, socket, user}) => {
     if (['♥', '♦'].includes(card.slice(-1))) {
       classes += ' red';
     }
+    // if (idx === length - 1) {
+    //   classes += ' animate';
+    // }
     return classes;
   };
   const getPlayerClass = (player, playerPosition) => {
     let classes = `playerSpace player${playerPosition}`;
-    if (playerCards[player].folded) {
+    if (playerInfo[player].folded) {
       classes += ' folded';
-    } else if (playerCards[player].winner) {
+    } else if (playerInfo[player].winner) {
       classes += ' winner'
     }
     return classes;
   };
   const rotatePlayers = () => {
-    const numRotates = players.indexOf(user);
+    const numRotates = players.indexOf(user) ;
     let rotated = players;
     for (let i = 0; i < numRotates; i++) {
       rotated.push(rotated.shift());
@@ -61,7 +79,7 @@ const Game = ({roomId, players, socket, user}) => {
   const PlayerHands = () => {
     let rotatedPlayers = rotatePlayers();
     let playerPositions = playerPositionMapper[rotatedPlayers.length];
-    const playerInfo = (player, idx, cards) => (
+    const playerBoard = (player, idx, cards) => (
       <div className={getPlayerClass(player, playerPositions[idx])} key={`player${idx}`}>
         <div className='cards'>
           <div className={getCardClass(cards[0])}>
@@ -72,21 +90,21 @@ const Game = ({roomId, players, socket, user}) => {
           </div>
         </div>
         <div className='playerName'>{player}</div>
-        <div className='playerChips'>{playerCards[player].chips}</div>
-        <div className={playerCards[player].role ? 'role' : 'noRole'}>{playerCards[player].role}</div>
-        <div className={(playerCards[player].roundBet || playerCards[player].handCombo) ? 'roundBet' : 'roundBet noBet'}>
-          <div>{playerCards[player].roundBet || playerCards[player].handCombo}</div>
+        <div className='playerChips'>{playerInfo[player].chips}</div>
+        <div className={playerInfo[player].role ? 'role' : 'noRole'}>{playerInfo[player].role}</div>
+        <div className={(playerInfo[player].roundBet || playerInfo[player].handCombo) ? 'roundBet' : 'roundBet noBet'}>
+          <div>{playerInfo[player].roundBet || playerInfo[player].handCombo}</div>
         </div>
       </div>
     );
     const playerHands = rotatedPlayers.map((player, idx) => {
-      if (idx === 0 || (stage === 'reveal' && !playerCards[player].folded)) {
+      if (idx === 0 || (stage === 'reveal' && !playerInfo[player].folded)) {
         return(
-          playerInfo(player, idx, playerCards[player].cards)
+          playerBoard(player, idx, playerInfo[player].cards)
         )
       } else {
         return(
-          playerInfo(player, idx, ['',''])
+          playerBoard(player, idx, ['',''])
         )
       }
   });
@@ -114,25 +132,25 @@ const Game = ({roomId, players, socket, user}) => {
     }
   };
   const raiseBet = (bet) => {
-    console.log(playerCards)
     if (currentPlayer !== user || stage === 'reveal') {
       console.log('not your turn');
     } else {
       console.log('raised hand to ', bet)
-      socket.emit(`bet ${roomId}`, user, bet - playerCards[user].roundBet, 'raise');
+      socket.emit(`bet ${roomId}`, user, bet - playerInfo[user].roundBet, 'raise');
     }
   };
   const PlayerControls = () => {
+    if (!playerInfo[user]) {return null};
     let classes = 'grayedOut';
-    let callBet = currentBet - playerCards[user].roundBet;
+    let callBet = currentBet - playerInfo[user].roundBet;
     if (currentPlayer === user && stage !== 'reveal') {
       classes = '';
-    } else if (playerCards[user].folded) {
+    } else if (playerInfo[user].folded) {
       classes  = 'grayedOut folded';
       callBet = 0;
     }
-    let minRaise = currentBet + bigBlind;
-    let maxRaise = playerCards[user].chips + playerCards[user].roundBet;
+    let minRaise = currentBet + 2 * smallBlind;
+    let maxRaise = playerInfo[user].chips + playerInfo[user].roundBet;
     if (currentBet) {
       // add rules around this confusing thing later. only the first bet per round the next has to double?
     }
@@ -144,7 +162,7 @@ const Game = ({roomId, players, socket, user}) => {
           <div className='control' onClick={() => raiseBet(potentialBet)}>Raise to {potentialBet}</div>
           <Slider
             defaultValue={minRaise}
-            step={bigBlind}
+            step={2 * smallBlind}
             disabled={classes === 'grayedOut'}
             marks
             min={minRaise}
@@ -170,97 +188,156 @@ const Game = ({roomId, players, socket, user}) => {
   };
 
   useEffect(() => {
-    socket.on(`start game ${roomId}`, (sPlayerCards, sCurrentPlayer) => {
-      if (sCurrentPlayer === user && sPlayerCards[user].role === 'Sm') {
-        socket.emit(`bet ${roomId}`, user, smallBlind, 'bigBlind');
-      } else if (sCurrentPlayer === user) {
-        console.log(user, ' big blind')
-        socket.emit(`bet ${roomId}`, user, bigBlind, 'smallBlind');
-      }
-      setDealerCards([]);
-      setCurrentBet(bigBlind);
-      setPotentialBet(2 * bigBlind);
-      setCurrentPlayer(sCurrentPlayer);
-      setPlayerCards(sPlayerCards);
-      setStage(true);
-      // playAudio('newGame');
-    });
-  }, [socket, roomId, user, bigBlind ]);
-  useEffect(() => {
-    socket.on(`update board ${roomId}`, (sPlayerCards, sPot, sCurrentPlayer, sStage, raise) => {
-      console.log('update board', sPlayerCards[user], sPot, sCurrentPlayer, sStage, raise);
-      if (sStage === 'raise') {
-        setCurrentBet(raise);
-        setPotentialBet(raise + bigBlind);
-      } else if (sStage === 'bigBlind' && sCurrentPlayer === user && sPlayerCards[user].roundBet === 0) {
-        socket.emit(`bet ${roomId}`, user, bigBlind, 'firstBet3P');
-      } else if (sStage === 'smallBlind' && sCurrentPlayer === user && sPlayerCards[user].roundBet === 0) {
-        // setCurrentBet(bigBlind);
-        // setPotentialBet(bigBlind * 2);
-        console.log(user, ' betting small blind')
-        socket.emit(`bet ${roomId}`, user, smallBlind, 'firstBet2P');
-        // setCurrentBet(raise);
-        // setPotentialBet(raise + bigBlind);
-      } else if (sStage === 'roundEnd') {
-        setCurrentBet(0);
-        setPotentialBet(bigBlind);
-      }
-      setCurrentPlayer(sCurrentPlayer);
-      setPlayerCards(sPlayerCards);
-      setPot(sPot);
-      //Testing
-      // if (sCurrentPlayer === user && (sStage === 'raise' || !sStage)) {
-      //   let callBet = raise || currentBet - sPlayerCards[user].roundBet;
-      //   socket.emit(`bet ${roomId}`, user, callBet);
-      // };
-    });
-  }, [socket, roomId, user, bigBlind]);
-  useEffect(() => {
-    socket.on(`flip card ${roomId}`, (sDealerCards, nextPlayer) => {
-      if (sDealerCards === 'done') {
-        console.log('game over!!  everyone flip');
-        setStage('reveal');
-        if (user === nextPlayer) {
-          socket.emit(`calculate win ${roomId}`);
+    if (usernameReady) {
+      socket.on(`start game ${roomId}`, (sPlayerInfo, sCurrentPlayer, sSmallBlind) => {
+        console.log('start game', sPlayerInfo)
+        const bigBlind = sSmallBlind * 2;
+        if (sCurrentPlayer === user && sPlayerInfo[user].role === 'Sm') {
+          socket.emit(`bet ${roomId}`, user, sSmallBlind, 'bigBlind');
+        } else if (sCurrentPlayer === user) {
+          console.log(user, ' big blind')
+          socket.emit(`bet ${roomId}`, user, bigBlind, 'smallBlind');
         }
-      } else {
-        setDealerCards(sDealerCards);
-      }
-    });
-  }, [socket, roomId, user]);
+        setDealerCards([]);
+        setCurrentBet(bigBlind);
+        setPotentialBet(2 * bigBlind);
+        setSmallBlind(sSmallBlind);
+        setCurrentPlayer(sCurrentPlayer);
+        setPlayerInfo(sPlayerInfo);
+        setStage(true);
+        // playAudio('newGame');
+      });
+    }
+  }, [socket, roomId, user, usernameReady]);
   useEffect(() => {
-    socket.on(`win ${roomId}`, (sPlayerCards, sPot, winner) => {
-      setCurrentPlayer('');
-      setPlayerCards(sPlayerCards);
-      setPot(sPot);
-      if (user === winner) {
-        socket.emit(`start game ${roomId}`);
-      };
+    if (usernameReady) {
+      socket.on(`update board ${roomId}`, (sPlayerInfo, sPot, sCurrentPlayer, sStage, sCurrentBet, sSmallBlind) => {
+        console.log('update board', sPlayerInfo[user], sPot, sCurrentPlayer, sStage, sCurrentBet);
+        const bigBlind = 2 * sSmallBlind;
+        if (sStage === 'raise') {
+          setCurrentBet(sCurrentBet);
+          setPotentialBet(sCurrentBet + bigBlind);
+        } else if (sStage === 'bigBlind' && sCurrentPlayer === user && sPlayerInfo[user].roundBet === 0) {
+          socket.emit(`bet ${roomId}`, user, bigBlind, 'firstBet3P');
+        } else if (sStage === 'smallBlind' && sCurrentPlayer === user && sPlayerInfo[user].roundBet === 0) {
+          console.log(user, ' betting small blind')
+          socket.emit(`bet ${roomId}`, user, sSmallBlind, 'firstBet2P');
+        } else if (sStage === 'roundEnd') {
+          setCurrentBet(0);
+          setPotentialBet(bigBlind);
+        }
+        setCurrentPlayer(sCurrentPlayer);
+        setPlayerInfo(sPlayerInfo);
+        setPot(sPot);
+      });
+    }
+  }, [socket, roomId, user, usernameReady]);
+  useEffect(() => {
+    if (usernameReady) {
+      socket.on(`flip card ${roomId}`, (sDealerCards, nextPlayer) => {
+        if (sDealerCards === 'done') {
+          console.log('game over!!  everyone flip');
+          setStage('reveal');
+          if (user === nextPlayer) {
+            socket.emit(`calculate win ${roomId}`);
+          }
+        } else {
+          setDealerCards(sDealerCards);
+        }
+      });
+    }
+  }, [socket, roomId, user, usernameReady]);
+  useEffect(() => {
+    if (usernameReady) {
+      socket.on(`win ${roomId}`, (sPlayerInfo, sPot, winner) => {
+        setCurrentPlayer('');
+        setPlayerInfo(sPlayerInfo);
+        setPot(sPot);
+        if (user === winner) {
+          socket.emit(`start game ${roomId}`);
+        };
+      });
+    }
+  }, [socket, roomId, user, usernameReady]);
+  useEffect(() => {
+    if (usernameReady) {
+      socket.on(`rejoin game ${roomId}`, (sUser, sPlayerInfo, sPot, sCurrentPlayer, sDealerCards, sCurrentBet, sSmallBlind) => {
+        if (sUser === user) {
+          console.log(sUser, sPlayerInfo, sPot, sCurrentPlayer, sDealerCards, sCurrentBet, sSmallBlind);
+          setPlayerInfo(sPlayerInfo);
+          setPot(sPot);
+          setCurrentPlayer(sCurrentPlayer);
+          setCurrentBet(sCurrentBet);
+          setDealerCards(sDealerCards);
+          setPotentialBet(sCurrentBet + 2 * sSmallBlind);
+          setSmallBlind(sSmallBlind);
+          setStage(true);
+        }
+      });
+    }
+  }, [socket, roomId, user, usernameReady]);
+  useEffect(() => {
+    socket.on(`disconnected player ${roomId}`, (sCurrentPlayer) => {
+      setCurrentPlayer(sCurrentPlayer);
     });
-  }, [socket, roomId, user]);
+  }, [socket, roomId]);
 
-  const StartModal = () => (
-    <div id="modal" className="modal">
-      <h3>
-        Press start once everyone is ready!
-        You can play with 2-5 players. <br />
-        Current Players:  
-      </h3>
-      <PlayersJoiningList/>
-      <div>
-        <button onClick={() => {
-          socket.emit(`start game ${roomId}`, true);
-          }}>Start</button>
-      </div>
-    </div>
-  );
+  const StartModal = () => {
+    if (!usernameReady) {
+      return (
+        <div id="modal" className="modal">
+        <h2>
+          What is your name? 
+        </h2>
+        <div>
+          <input
+            placeholder={'enter name'}
+            autoFocus
+            type="text"
+            name="username"
+            maxLength="24"
+            value={user}
+            onKeyDown={(e) => {if (e.keyCode === 13) {setUserName()}}}
+            onChange={(e) => setUser(e.target.value)}
+          ></input>
+          <button onClick={() => setUserName()}>Good to Go</button>
+          { errorMessage ? <div className='errorMessage'>{errorMessage}</div> : null}
+          <h3>Current Players:</h3>
+          <PlayersJoiningList/>
+        </div>
+      </div> 
+      )
+    } else {
+      return (
+        <div id="modal" className="modal">
+          <h3>
+            Press start once everyone is ready!
+            You can play with 2-4 players. <br />
+            Current Players:  
+          </h3>
+          <PlayersJoiningList/>
+          <div>
+            <button onClick={() => {
+              if (players.length > 1 && players.length < 5) {
+                setErrorMessage(false);
+                socket.emit(`start game ${roomId}`, true);
+              } else {
+                setErrorMessage('Must have between 2 and 4 players to start game');
+              }
+              }}>Start</button>
+          </div>
+          { errorMessage ? <div className='errorMessage'>{errorMessage}</div> : null}
+        </div>
+      )
+    }
+  };
   
   return (
     <div className="game">
       Welcome to room {roomId}!<br />
-      { stage && playerCards ? `Blinds: ${smallBlind}/${bigBlind}` : '' }<br/>
-      { stage && playerCards && currentPlayer ? `${currentPlayer}'s turn` : '' }
-      { stage && playerCards ? <div>
+      { stage && playerInfo ? `Blinds: ${smallBlind}/${2 * smallBlind}` : '' }<br/>
+      { stage && playerInfo && currentPlayer ? `${currentPlayer}'s turn` : '' }
+      { usernameReady && stage && playerInfo ? <div>
           <TableCards/>
           <PlayerHands/>
           <PlayerControls/>
