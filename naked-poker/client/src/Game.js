@@ -115,6 +115,19 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
     )
   };
 
+  // useEffect(() => {
+  //   if (roomId === 'TEST') {
+  //     const interval = setInterval(() => {
+  //       if (!currentPlayer || !playerInfo[currentPlayer]) { return;}
+  //       console.log('calling with', currentPlayer);
+  //       let callBet = currentBet - playerInfo[currentPlayer].roundBet;
+  //       console.log(' does callbet work', callBet)
+  //       socket.emit(`bet ${roomId}`, currentPlayer, callBet);
+  //     }, 2000)
+  //     return () => clearInterval(interval);
+  //   }
+  // }, [socket, roomId, currentPlayer, currentBet, playerInfo]);
+ 
   const callHand = (callBet) => {
     if (currentPlayer !== user || stage === 'reveal') {
       console.log('not your turn');
@@ -139,6 +152,7 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
       socket.emit(`bet ${roomId}`, user, bet - playerInfo[user].roundBet, 'raise');
     }
   };
+
   const PlayerControls = () => {
     if (!playerInfo[user]) {return null};
     let classes = 'grayedOut';
@@ -334,7 +348,7 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
   
   return (
     <div className="game">
-      Welcome to room {roomId}!<br />
+      { stage ? `Welcome to room ${roomId}!` : `Invite friends to play with code: ${roomId}`}<br />
       { stage && playerInfo ? `Blinds: ${smallBlind}/${2 * smallBlind}` : '' }<br/>
       { stage && playerInfo && currentPlayer ? `${currentPlayer}'s turn` : '' }
       { usernameReady && stage && playerInfo ? <div>

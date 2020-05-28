@@ -17,18 +17,23 @@ app.get('*', (req, res) => {
 
 let rooms = {'TEST': {
   allColors: ['#E8AA14', '#FF5714', '#EA6ED7', '#99FF14', '#D4FFA1' ],
+  allPlayers: ['Cailin', 'Ali', 'Logurt'],
+  smallBlind: 100,
   users: {
     'Cailin': {
       socketId: '12345',
-      color: '#6EEB83'
-     },
+      color: '#6EEB83',
+      chips: 10000
+    },
     'Logurt': {
       socketId: '098324923',
-      color: '#c07dff'
-     },
+      color: '#c07dff',
+      chips: 10000
+    },
     'Ali': {
       socketId: '324234234',
-      color: '#E4FF1A'
+      color: '#E4FF1A',
+      chips: 10000
      }
   }
 }};
@@ -71,7 +76,7 @@ const cardSuitMapper = {
   '♠': 8
 };
 const handRankMapper = {
-  1 : 'High Card',
+  1: 'High Card',
   2: '1 Pair',
   3: '2 Pair',
   4: '3 of a Kind',
@@ -96,70 +101,107 @@ const combinations = (array) => {
       (e1,i) => array.filter((e2, j) => i & 1 << j)).filter(a => a.length === 5);
 };
 
-const findHighestPairIdx = (bestHands) => {
+const compareTwoHands = (sortedHand1, sortedHand2) => {
+  if (!sortedHand1.length) {return sortedHand2;}
+  for (let i = 0; i < 5; i++) {
+    if (sortedHand1[i] > sortedHand2[i]) {
+      return sortedHand1;
+    } else if (sortedHand2[i] > sortedHand1[i]) {
+      return sortedHand2;
+    }
+  }
+  return sortedHand1;
+};
+const compareFinalHands = (bestHands) => {
+  let bestPlayerIdxs = [...Array(bestHands.length).keys()];
+  for (let i = 0; i < 5; i++) {
+    if (bestPlayerIdxs.length === 1) {
+      return bestPlayerIdxs;
+    }
+    let cards = [];
+    for (let j = 0; j < bestPlayerIdxs.length; j++) {
+      cards.push({val: bestHands[bestPlayerIdxs[j]][i], player: bestPlayerIdxs[j]});
+    }
+    cards = cards.sort((a,b) => b.val - a.val);
+    console.log(cards);
+    cards.forEach(card => {
+      if (card.val < cards[0].val) {
+        bestPlayerIdxs = bestPlayerIdxs.filter(player => player !== card.player);
+      }
+    })
+  }
+  return bestPlayerIdxs;
+};
+
+// console.log('Compare final ', compareFinalHands([[13,11,4,3,2], [13,11,4,3,9], [13,11,4,3,2], [13,11,4,3,9]]));
+const handTypeMapper = {
+  'High Card': 1,
+  '1 Pair': 2,
+  '2 Pair': 2,
+  '3 of a Kind': 3,
+  'Straight': 1,
+  'Flush': 1,
+  'Full House': 3,
+  '4 of a Kind': 4,
+  'Straight Flush': 1
+}
+
+const findHighestHandIdx = (bestHands, handType) => {
+  const cardToCompare = handTypeMapper[handType] - 1;
   let bestPlayerIdx = new Set();
   let bestCard = '2';
-  let comparingHands = [];
+  let comparingHands = Array.from(Array(bestHands.length), () => []);
   bestHands.forEach((playerHands, playerIdx) => {
     playerHands.forEach((hand) => {
-      let sortedHand = hand.sort();
-      [0,1,2,3,].forEach(cardIdx => {
-        if (sortedHand[cardIdx] === sortedHand[cardIdx + 1] && sortedHand[cardIdx] > bestCard) {
-          bestCard = sortedHand[cardIdx];
-          bestPlayerIdx = new Set([playerIdx]);
-          console.log(sortedHand[cardIdx], bestCard, bestPlayerIdx)
-        } else if (sortedHand[cardIdx] === sortedHand[cardIdx + 1] && sortedHand[cardIdx] === bestCard) {
-          bestPlayerIdx.add(playerIdx);
-          comparingHands.push(playerIdx);
-          console.log(sortedHand[cardIdx], bestCard, bestPlayerIdx)
+      let sortedHand = hand.sort((a,b) => b-a);
+      for (let i = 0; i < (5 - cardToCompare); i++) {
+        if (sortedHand[i] === sortedHand[i + cardToCompare]) {
+          if (sortedHand[i] > bestCard) {
+            bestCard = sortedHand[i];
+            bestPlayerIdx = new Set([playerIdx]);
+            comparingHands = Array.from(Array(bestHands.length), () => []);
+            comparingHands[playerIdx] = sortedHand;  
+            // console.log(comparingHands)
+          } else if (sortedHand[i] === bestCard) {
+            bestPlayerIdx.add(playerIdx);
+            comparingHands[playerIdx] = compareTwoHands(comparingHands[playerIdx], sortedHand);
+            // console.log(comparingHands)
+          }
+          break;
         }
-      })
+      }
     });
   });
   if (bestPlayerIdx.size === 1) {
-    return [...bestPlayerIdx][0];
+    return [[...bestPlayerIdx][0]];
   } else {
-    return 'digDeeper';
+    return compareFinalHands(comparingHands);
   }
 };
-
 const findWinner = (overallBestHands, bestPlayers, bestCombo) => {
   if (bestPlayers.length === 1) {
-    return bestPlayers[0];
+    return [bestPlayers[0]];
   } else {
-    if (bestCombo === '1 Pair' || bestCombo === '2 Pair') {
-      return bestPlayers[findHighestPairIdx(overallBestHands)];
-    }
+    return findHighestHandIdx(overallBestHands, bestCombo).map(idx => bestPlayers[idx]);
   }
 };
 // console.log(findWinner(
 //   [
 //     [
-//       [ '8', '4', '6', '9', '8' ],
-//       [ '8', '4', '6', '13', '8' ],
-//       [ '8', '4', '9', '13', '8' ],
-//       [ '8', '6', '9', '13', '8' ],
-//       [ '8', '4', '6', '2', '8' ],
-//       [ '8', '4', '9', '2', '8' ],
-//       [ '8', '6', '9', '2', '8' ],
-//       [ '8', '4', '13', '2', '8' ],
-//       [ '8', '6', '13', '2', '8' ],
-//       [ '8', '9', '13', '2', '8' ]
+//       [ 11, 12, 10, 8, 4 ],
+//       [ 3, 13, 12, 11, 15 ]
 //     ],
 //     [
-//       [ '9', '4', '6', '9', '8' ],
-//       [ '9', '4', '9', '13', '8' ],
-//       [ '9', '6', '9', '13', '8' ],
-//       [ '9', '4', '9', '2', '8' ],
-//       [ '9', '6', '9', '2', '8' ],
-//       [ '9', '9', '13', '2', '8' ]
+//       [ 9, 11, 14, 12, 8 ],
+//       [ 13, 9, 15, 3, 8 ]
 //     ]
-//   ], ['mike','chy'], '1 Pair'))
-// console.log(findWinner([[['4','6','6','8','8']],[['4','8','6','3','4'],['4','8','6','8','12']]], ['mike','chy'], '1 Pair'))
-// console.log(findWinner([[['4','6','6','8','8']],[['5','6','6','3','5'],['8','2','2','8','9']]], ['mike','chy'], '2 Pair'))
+//   ], ['mike', 'ali'], High Card'))
+// console.log(findWinner([[[4,6,5,8,8]],[[4,8,6,3,4],[4,8,6,8,12]]], ['mike','chy'], '1 Pair'))
+// console.log(findWinner([[[4,5,6,7,8]],[[4,5,6,7,8]],[[4,5,6,7,8]]], ['mike','chy', 'ali'], 'Straight'))
+// console.log(findWinner([[[4,6,6,8,8]],[[5,6,6,3,5],[8,2,9,8,9]]], ['mike','chy'], '2 Pair'))
+// console.log(findWinner([[[8,6,6,8,8]],[[5,6,6,5,5],[8,8,9,8,9]]], ['mike','chy'], 'Full House'))
 
-let disconnectTimeOut;
-let disconnectedUser = [];
+let disconnectUserTimeOuts = {};
 
 //shape of Rooms
 // rooms: {
@@ -200,13 +242,13 @@ io.on('connection', (socket) => {
   }
   let room = rooms[roomId];  
   
-  io.emit(`all users ${roomId}`, Object.keys(room.users).filter(player => player !== disconnectedUser[0]));
+  io.emit(`all users ${roomId}`, Object.keys(room.users).filter(player => !disconnectUserTimeOuts[player]));
 
   socket.on(`set user ${roomId}`, (username) => {
     user = username;
-    if (user === disconnectedUser[0]) {
-      clearTimeout(disconnectTimeOut);
-      disconnectedUser = [];
+    if (disconnectUserTimeOuts[user]) {
+      clearTimeout(disconnectUserTimeOuts[user]);
+      disconnectUserTimeOuts[user] = null;
     }
     if (!rooms[roomId]) {
       rooms[roomId] = {
@@ -351,8 +393,8 @@ io.on('connection', (socket) => {
       let bestRank = 0;
       let bestHands = [];
       fiveCardCombos.forEach(hand => {
-        const allCardsCS = hand.map(card => cardValueMapper[card[0]] || card[0]);
-        const allCardsSS = hand.map(card => cardSuitMapper[card[2]]);
+        const allCardsCS = hand.map(card => parseInt(cardValueMapper[card[0]]) || parseInt(card[0]));
+        const allCardsSS = hand.map(card => cardSuitMapper[card[2]] || cardSuitMapper[card[3]]);
         let handRank = evaluateHand(allCardsCS, allCardsSS);
         if (handRank > bestRank) {
           bestRank = handRank;
@@ -374,35 +416,50 @@ io.on('connection', (socket) => {
     console.log(overallBestHands)
     console.log(bestPlayers)
     console.log(handRankMapper[overallBestRank]);
-    let winner = findWinner(overallBestHands, bestPlayers, handRankMapper[overallBestRank]) || bestPlayers[0]; //just doing this for testing
-    room.users[winner].chips += room.pot;
-    room.users[winner].winner = true;
-    io.emit(`chat message ${roomId}`, `${winner} won ${room.pot} this round with a ${room.users[winner].handCombo}!`, '#282c34');
-    room.pot = 0;
-    io.emit(`win ${roomId}`, room.users, room.pot, winner);
-
+    let winnerArray = findWinner(overallBestHands, bestPlayers, handRankMapper[overallBestRank]) || bestPlayers[0]; //just doing this for testing
+    if (winnerArray.length === 1) {
+      const winner = winnerArray[0];
+      room.users[winner].chips += room.pot;
+      room.users[winner].winner = true;
+      io.emit(`chat message ${roomId}`, `${winner} won ${room.pot} this round with a ${room.users[winner].handCombo}!`, '#282c34');
+      room.pot = 0;
+    } else {
+      winnerArray.forEach(winner => {
+        room.users[winner].chips += Math.floor(room.pot / winnerArray.length);
+        room.users[winner].winner = true;
+        io.emit(`chat message ${roomId}`, `${winner} won ${room.pot} in a shared win with a ${room.users[winner].handCombo}!`, '#282c34');
+        room.pot = 0;
+      })
+    }
+    io.emit(`win ${roomId}`, room.users, room.pot, winnerArray[0]);
   });
 
   socket.on('disconnect', () => {
+    console.log(disconnectUserTimeOuts);
+    console.log(user);
     if (!user) {return;}
     if (room.roundPlayers && room.roundPlayers.length >= 2) {
-      disconnectedUser = Object.keys(room.users).filter(user => room.users[user].socketId === socket.id);
-      console.log(disconnectedUser, ' left, giving 10 sex')
-      disconnectTimeOut = setTimeout(() => {
-        delete room.users[disconnectedUser];
-        room.allPlayers = room.allPlayers.filter(player => player !== disconnectedUser[0]);
-        if (room.currentPlayer === disconnectedUser) {
-          const currentPlayerIdx = room.roundPlayers.indexOf(disconnectedUser);
+      console.log(user, ' left, giving 15 sex')
+      disconnectUserTimeOuts[user] = setTimeout(() => {
+        delete room.users[user];
+        room.allPlayers = room.allPlayers.filter(player => player !== user);
+        console.log('disconnecting player from room: ', user)
+        if (room.currentPlayer === user) {
+          const currentPlayerIdx = room.roundPlayers.indexOf(user);
           room.currentPlayer = room.roundPlayers[(currentPlayerIdx + 1) % room.roundPlayers.length];      
           io.emit(`disconnected player ${roomId}`, room.currentPlayer);
-          console.log('disconnected ', disconnectedUser);
+          console.log('disconnected ', user);
         }
-        if (room.lastBetter === disconnectedUser) {
+        if (room.lastBetter === user) {
           room.lastBetter = room.currentPlayer;
         }
-        room.roundPlayers = room.roundPlayers.filter(player => player !== disconnectedUser[0]);
+        room.roundPlayers = room.roundPlayers.filter(player => player !== user);
+        if (!room.roundPlayers.length) {
+          console.log('deleting roomId')
+          delete rooms[roomId];
+        }
         io.emit(`all users ${roomId}`, room.allPlayers);
-      }, 10000);
+      }, 15000);
       
       if (user) {
         io.emit(`chat message ${roomId}`, user + " has left the chat.  If they do not rejoin within 15 seconds, they will be booted", '#282c34');
@@ -411,9 +468,9 @@ io.on('connection', (socket) => {
       console.log('deleting roomId')
       delete rooms[roomId];
     } else {
-      tempDisconnectedUser = Object.keys(room.users).filter(user => room.users[user].socketId === socket.id);
+      tempDisconnectedUser = user
       delete room.users[tempDisconnectedUser];
-      room.allPlayers = room.allPlayers.filter(player => player !== tempDisconnectedUser[0]);
+      room.allPlayers = room.allPlayers.filter(player => player !== user);
       io.emit(`all users ${roomId}`, room.allPlayers);
     }
   });
