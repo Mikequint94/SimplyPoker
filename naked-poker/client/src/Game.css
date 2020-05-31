@@ -178,13 +178,84 @@
     text-align: center;
     left: 32vw;
     top: 25vh;
-}    
+}   
+.game span#welcome, .game div#blinds, .game div#currentPlayerMsg {
+    padding-left: 12px;
+} 
 
+@media screen and (max-width: 950px) {
+    #tableCards .dealerCards {
+        width: 33vw;
+    }
+
+}
 @media screen and (max-width: 480px) {
     .game .modal h3 {
         font-size: 1rem;
-        line-height: 31px;
+        line-height: 23px;
     }
+    .game > span{
+        font-size: 1.2rem;
+        padding-top: 2px;
+        padding-left: 10px;
+    }
+    .game span#welcome {
+        display: none;
+    }
+    .game div#blinds, .game div#currentPlayerMsg{
+        font-size: 1rem;
+        width: 100px;
+        padding-top: 6px;
+    }
+    .game #playerControls {
+        flex-direction: column;
+        top: 47vh;
+        font-size: 1.2rem;
+    }
+    .game #playerControls div{
+        height: 0;
+    }
+    .game #playerControls .control {
+        width: 30vw;
+        margin-top: 10px;
+        height: fit-content;
+        padding: 5px 0;
+    }
+    .playerSpace {
+        font-size: 1.1rem;
+    }
+    .playerSpace .role {
+        font-size: 0.8rem;
+        bottom: 19vh;
+    }
+    .playerSpace .cards {
+        padding-top: 4vh;
+    }
+    .playerSpace .card {
+        margin: 4px;
+        height: 46px;
+        width: 25px;
+        font-size: 1.25rem;
+    }
+    #tableCards {
+        font-size: 1rem;
+    }
+    #tableCards .dealerCards .card {
+        font-size: 1rem;
+        width: 19px;
+        height: 38px;
+        margin: 2px;
+        border-width: 1px;
+        padding: 2px 6px;
+    }
+    #tableCards .dealerCards {
+        width: 33vw;
+        margin: 2px;
+        height: 95px;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
 }
 
 /* @keyframes fadeInAnimation { 

@@ -348,9 +348,9 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
   
   return (
     <div className="game">
-      { stage ? `Welcome to room ${roomId}!` : `Invite friends to play with code: ${roomId}`}<br />
-      { stage && playerInfo ? `Blinds: ${smallBlind}/${2 * smallBlind}` : '' }<br/>
-      { stage && playerInfo && currentPlayer ? `${currentPlayer}'s turn` : '' }
+      { stage ? <span id='welcome'>Welcome to room {roomId}!<br /></span> : <span>Invite friends to play with code: {roomId}<br /></span>}
+      { stage && playerInfo ? <div id='blinds'>Blinds: {smallBlind}/{2 * smallBlind}<br/></div> : '' }
+      { stage && playerInfo && currentPlayer ? <div id='currentPlayerMsg'>{currentPlayer}'s turn</div> : '' }
       { usernameReady && stage && playerInfo ? <div>
           <TableCards/>
           <PlayerHands/>
