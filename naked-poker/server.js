@@ -212,6 +212,7 @@ let disconnectUserTimeOuts = {};
   //   'pot': 0,
   //   'lastBetter': 'mike',
   //   'currentPlayer': 'ali',
+  //   'roundStarter': 'playerLeftoDeala',
   //   'currentBet': 600,
   //   'smallBlind': 100,
   //   'dealerCards': ['4 ♠', '2 ♦', 'Q ♣', 'K ♣', '6 ♠'],
@@ -243,6 +244,34 @@ io.on('connection', (socket) => {
   let room = rooms[roomId];  
   
   io.emit(`all users ${roomId}`, Object.keys(room.users).filter(player => !disconnectUserTimeOuts[player]));
+
+  const dealDealerCards = () => {
+    room.roundPlayers.forEach(player => {
+      room.users[player].roundBet = 0;
+    });
+    room.currentPlayer = room.roundStarter;
+    room.lastBetter = room.roundStarter;
+    if (!room.dealerCards.length) {
+      room.dealerCards = [...room.dealerCards, room.deck.pop()];
+      io.emit(`flip card ${roomId}`, room.dealerCards, room.currentPlayer);
+      setTimeout(() => {
+        room.dealerCards = [...room.dealerCards, room.deck.pop()];
+        io.emit(`flip card ${roomId}`, room.dealerCards, room.currentPlayer);
+      }, 500);
+      setTimeout(() => {
+        room.dealerCards = [...room.dealerCards, room.deck.pop()];
+        io.emit(`flip card ${roomId}`, room.dealerCards, room.currentPlayer);
+      }, 1000);
+    } else if (room.dealerCards.length === 3) {
+      room.dealerCards = [...room.dealerCards, room.deck.pop()];
+      io.emit(`flip card ${roomId}`, room.dealerCards, room.currentPlayer);
+    } else if (room.dealerCards.length === 4) {
+      room.dealerCards = [...room.dealerCards, room.deck.pop()];
+      io.emit(`flip card ${roomId}`, room.dealerCards, room.currentPlayer);
+    } else if (room.dealerCards.length === 5) {
+      io.emit(`flip card ${roomId}`, 'done', room.currentPlayer);
+    }
+  }
 
   socket.on(`set user ${roomId}`, (username) => {
     user = username;
@@ -292,7 +321,8 @@ io.on('connection', (socket) => {
     let roles;
     // rotate roles once each time
     room.allPlayers.push(room.allPlayers.shift());
-    room.currentPlayer = room.roundPlayers[1] || room.roundPlayers[0];
+    room.currentPlayer = room.roundPlayers[1] || room.roundPlayers[0]; // So i can test by myself
+    room.roundStarter = room.roundPlayers[1] || room.roundPlayers[0]; // So i can test by myself
     if (room.roundPlayers.length > 2) {
       roles = ['D','Sm','Bg'];
     } else {
@@ -333,45 +363,19 @@ io.on('connection', (socket) => {
       room.currentPlayer = user;
     } else if (!stage && room.currentPlayer === room.lastBetter) {
       stage = 'roundEnd';
-      room.roundPlayers.forEach(player => {
-        room.users[player].roundBet = 0;
-      });
-      if (!room.dealerCards.length) {
-        // room.dealerCards = room.deck.splice(0,3);
-        room.dealerCards = [...room.dealerCards, room.deck.pop()];
-        io.emit(`flip card ${roomId}`, room.dealerCards, room.currentPlayer);
-        setTimeout(() => {
-          room.dealerCards = [...room.dealerCards, room.deck.pop()];
-          io.emit(`flip card ${roomId}`, room.dealerCards, room.currentPlayer);
-        }, 500);
-        setTimeout(() => {
-          room.dealerCards = [...room.dealerCards, room.deck.pop()];
-          io.emit(`flip card ${roomId}`, room.dealerCards, room.currentPlayer);
-        }, 1000);
-      } else if (room.dealerCards.length === 3) {
-        room.dealerCards = [...room.dealerCards, room.deck.pop()];
-        io.emit(`flip card ${roomId}`, room.dealerCards, room.currentPlayer);
-      } else if (room.dealerCards.length === 4) {
-        room.dealerCards = [...room.dealerCards, room.deck.pop()];
-        io.emit(`flip card ${roomId}`, room.dealerCards, room.currentPlayer);
-      } else if (room.dealerCards.length === 5) {
-        io.emit(`flip card ${roomId}`, 'done', room.currentPlayer);
-      }
+      dealDealerCards();
     }
     io.emit(`update board ${roomId}`, room.users, room.pot, room.currentPlayer, stage, room.currentBet, room.smallBlind);
   });
   socket.on(`fold ${roomId}`, (user, stage = '') => {
     console.log(room.roundPlayers)
-    room.roundPlayers = room.roundPlayers.filter(player => player !== user);
-    room.users[user].folded = true;
-    console.log(room.roundPlayers, user)
     const currentPlayerIdx = room.roundPlayers.indexOf(user);
     room.currentPlayer = room.roundPlayers[(currentPlayerIdx + 1) % room.roundPlayers.length];
-    if (room.lastBetter = user) {
-      room.lastBetter = room.currentPlayer;
+    room.roundPlayers = room.roundPlayers.filter(player => player !== user);
+    room.users[user].folded = true;
+    if (room.roundStarter === user) {
+      room.roundStarter = room.currentPlayer;
     }
-    // maybe bugs here on play order after a fold check for 3+P!
-    console.log(room.currentPlayer);
     if (room.roundPlayers.length === 1) {
       const winner = room.roundPlayers[0];
       room.users[winner].chips += room.pot;
@@ -379,7 +383,13 @@ io.on('connection', (socket) => {
       io.emit(`chat message ${roomId}`, `${winner} won ${room.pot} this round as the last player standing.`, '#282c34');
       room.pot = 0;
       io.emit(`win ${roomId}`, room.users, room.pot, winner);
+    } else if (room.currentPlayer === room.lastBetter) {
+      stage = 'roundEnd';
+      dealDealerCards();
+    } else if (room.lastBetter === user) {
+      room.lastBetter = room.currentPlayer;
     }
+    console.log(`roundPlayers ${room.roundPlayers}, nextPlayer ${room.currentPlayer}, lastBetter ${room.lastBetter}`);
     io.emit(`update board ${roomId}`, room.users, room.pot, room.currentPlayer, stage);
   });
   socket.on(`calculate win ${roomId}`, () =>{
@@ -422,15 +432,15 @@ io.on('connection', (socket) => {
       room.users[winner].chips += room.pot;
       room.users[winner].winner = true;
       io.emit(`chat message ${roomId}`, `${winner} won ${room.pot} this round with a ${room.users[winner].handCombo}!`, '#282c34');
-      room.pot = 0;
     } else {
+      const splitPot = Math.floor(room.pot / winnerArray.length);
       winnerArray.forEach(winner => {
-        room.users[winner].chips += Math.floor(room.pot / winnerArray.length);
+        room.users[winner].chips += splitPot;
         room.users[winner].winner = true;
-        io.emit(`chat message ${roomId}`, `${winner} won ${room.pot} in a shared win with a ${room.users[winner].handCombo}!`, '#282c34');
-        room.pot = 0;
+        io.emit(`chat message ${roomId}`, `${winner} won ${splitPot} in a shared win with a ${room.users[winner].handCombo}!`, '#282c34');
       })
     }
+    room.pot = 0;
     io.emit(`win ${roomId}`, room.users, room.pot, winnerArray[0]);
   });
 

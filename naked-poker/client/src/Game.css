@@ -187,7 +187,6 @@
     #tableCards .dealerCards {
         width: 33vw;
     }
-
 }
 @media screen and (max-width: 480px) {
     .game .modal h3 {
