@@ -314,7 +314,11 @@ io.on('connection', (socket) => {
 
   socket.on(`start game ${roomId}`, (firstGame = false) => {
     room.deck = resetAndMakeDeck();
-    room.roundPlayers = room.allPlayers.slice();
+    room.roundPlayers = room.allPlayers.slice().filter(user => room.users[user].chips > 0);
+    if (room.roundPlayers.length === 1) {
+      io.emit(`chat message ${roomId}`, '~!~!~! ' + room.roundPlayers[0] + " has won the game!! ~!~!~!", '#282c34');
+      return;
+    }
     room.pot = 0;
     room.dealerCards = [];
     room.currentBet = room.smallBlind * 2;
@@ -328,6 +332,14 @@ io.on('connection', (socket) => {
     } else {
       roles = ['D','Bg'];
     }
+    room.allPlayers.slice().forEach(user => {
+      if (room.users[user].chips <= 0) {
+        room.users[user].folded = true;
+        room.users[user].roundBet = 0;
+        room.users[user].role = ''; 
+        room.users[user].handCombo = '';
+      }
+    })
     room.roundPlayers.forEach(user => {
       room.users[user].roundBet = 0;
       room.users[user].cards = room.deck.splice(0,2); 
