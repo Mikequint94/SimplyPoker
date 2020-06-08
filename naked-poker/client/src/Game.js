@@ -14,6 +14,7 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
   const [pot, setPot] = useState(0);
   const [potentialBet, setPotentialBet] = useState(0);
   const [errorMessage, setErrorMessage] = useState(false);
+  const [welcomeText, setWelcomeText] = useState(`Welcome to room ${roomId}!`);
   const [user, setUser] = useState('');
 
   const setUserName = () => {
@@ -87,7 +88,8 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
     1: [1], // Just to keep game good for now and testing
     2: [1,3],
     3: [1,2,4],
-    4: [1,2,3,4]
+    4: [1,2,3,4],
+    5: [1,2,5,6,4]
   };
   const PlayerHands = () => {
     let rotatedPlayers = rotatePlayers();
@@ -248,8 +250,8 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
   }, [socket, roomId, user, usernameReady]);
   useEffect(() => {
     if (usernameReady) {
-      socket.on(`update board ${roomId}`, (sPlayerInfo, sPot, sCurrentPlayer, sStage, sCurrentBet, sSmallBlind) => {
-        console.log('update board', sPlayerInfo[user], sPot, sCurrentPlayer, sStage, sCurrentBet);
+      socket.on(`update board ${roomId}`, (sPlayerInfo, sCurrentPlayer, sStage, sCurrentBet, sSmallBlind) => {
+        console.log('update board', sPlayerInfo[user], sCurrentPlayer, sStage, sCurrentBet);
         const bigBlind = 2 * sSmallBlind;
         if (sCurrentPlayer === user && !['bigBlind', 'smallBlind'].includes(sStage)) {
           playAudio('yourturn');
@@ -268,14 +270,16 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
         }
         setCurrentPlayer(sCurrentPlayer);
         setPlayerInfo(sPlayerInfo);
-        setPot(sPot);
       });
     }
   }, [socket, roomId, user, usernameReady]);
   useEffect(() => {
     if (usernameReady) {
-      socket.on(`flip card ${roomId}`, (sDealerCards, nextPlayer) => {
+      socket.on(`flip card ${roomId}`, (sDealerCards, nextPlayer, sPot) => {
         playAudio('flipcard');
+        if (sPot) {
+          setPot(sPot);
+        }
         if (sDealerCards === 'done') {
           console.log('game over!!  everyone flip');
           setStage('reveal');
@@ -354,17 +358,20 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
         <div id="modal" className="modal">
           <h3>
             Press start once everyone is ready!
-            You can play with 2-4 players. <br />
+            You can play with 2-5 players. <br />
             Current Players:  
           </h3>
           <PlayersJoiningList/>
           <div>
             <button onClick={() => {
-              if (players.length > 1 && players.length < 5) {
+              if (players.length > 1 && players.length < 6) {
                 setErrorMessage(false);
+                if (players.length === 5) {
+                  setWelcomeText(`Room ${roomId}`);
+                }
                 socket.emit(`start game ${roomId}`, true);
               } else {
-                setErrorMessage('Must have between 2 and 4 players to start game');
+                setErrorMessage('Must have between 2 and 5 players to start game');
               }
               }}>Start</button>
           </div>
@@ -376,7 +383,7 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
   
   return (
     <div className="game">
-      { stage ? <span id='welcome'>Welcome to room {roomId}!<br /></span> : <span>Invite friends to play with code: {roomId}<br /></span>}
+      { stage ? <span id='welcome'>{welcomeText}<br /></span> : <span>Invite friends to play with code: {roomId}<br /></span>}
       { stage && playerInfo ? <div id='blinds'>Blinds: {smallBlind}/{2 * smallBlind}<br/></div> : '' }
       { stage && playerInfo && currentPlayer ? <div id='currentPlayerMsg'>{currentPlayer}'s turn</div> : '' }
       { usernameReady && stage && playerInfo ? <div>

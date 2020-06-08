@@ -247,13 +247,14 @@ io.on('connection', (socket) => {
 
   const dealDealerCards = () => {
     room.roundPlayers.forEach(player => {
+      room.pot += room.users[player].roundBet;
       room.users[player].roundBet = 0;
     });
     room.currentPlayer = room.roundStarter;
     room.lastBetter = room.roundStarter;
     if (!room.dealerCards.length) {
       room.dealerCards = [...room.dealerCards, room.deck.pop()];
-      io.emit(`flip card ${roomId}`, room.dealerCards, room.currentPlayer);
+      io.emit(`flip card ${roomId}`, room.dealerCards, room.currentPlayer, room.pot);
       setTimeout(() => {
         room.dealerCards = [...room.dealerCards, room.deck.pop()];
         io.emit(`flip card ${roomId}`, room.dealerCards, room.currentPlayer);
@@ -264,12 +265,12 @@ io.on('connection', (socket) => {
       }, 1000);
     } else if (room.dealerCards.length === 3) {
       room.dealerCards = [...room.dealerCards, room.deck.pop()];
-      io.emit(`flip card ${roomId}`, room.dealerCards, room.currentPlayer);
+      io.emit(`flip card ${roomId}`, room.dealerCards, room.currentPlayer, room.pot);
     } else if (room.dealerCards.length === 4) {
       room.dealerCards = [...room.dealerCards, room.deck.pop()];
-      io.emit(`flip card ${roomId}`, room.dealerCards, room.currentPlayer);
+      io.emit(`flip card ${roomId}`, room.dealerCards, room.currentPlayer, room.pot);
     } else if (room.dealerCards.length === 5) {
-      io.emit(`flip card ${roomId}`, 'done', room.currentPlayer);
+      io.emit(`flip card ${roomId}`, 'done', room.currentPlayer, room.pot);
     }
   }
 
@@ -360,7 +361,6 @@ io.on('connection', (socket) => {
   });
   socket.on(`bet ${roomId}`, (user, amount, stage = '') => {
     console.log(user, amount, stage);
-    room.pot += amount;
     room.users[user].chips -= amount;
     room.users[user].roundBet += amount;
     const currentPlayerIdx = room.roundPlayers.indexOf(user);
@@ -377,7 +377,7 @@ io.on('connection', (socket) => {
       stage = 'roundEnd';
       dealDealerCards();
     }
-    io.emit(`update board ${roomId}`, room.users, room.pot, room.currentPlayer, stage, room.currentBet, room.smallBlind);
+    io.emit(`update board ${roomId}`, room.users, room.currentPlayer, stage, room.currentBet, room.smallBlind);
   });
   socket.on(`fold ${roomId}`, (user, stage = '') => {
     console.log(room.roundPlayers)
@@ -402,7 +402,7 @@ io.on('connection', (socket) => {
       room.lastBetter = room.currentPlayer;
     }
     console.log(`roundPlayers ${room.roundPlayers}, nextPlayer ${room.currentPlayer}, lastBetter ${room.lastBetter}`);
-    io.emit(`update board ${roomId}`, room.users, room.pot, room.currentPlayer, stage);
+    io.emit(`update board ${roomId}`, room.users, room.currentPlayer, stage);
   });
   socket.on(`calculate win ${roomId}`, () =>{
     let overallBestHands = [];

@@ -103,10 +103,10 @@
 }
 .player1 {
     left: 36vw;
-    top: 46vh;
+    top: 47vh;
 }
 .player2 {
-    top: 23vh;
+    top: 24vh;
     left: 1vw;
 }
 .player3 {
@@ -115,7 +115,15 @@
 }
 .player4 {
     right: 1vw;
-    top: 23vh;
+    top: 24vh;
+}
+.player5 {
+    left: 22vw;
+    top: 1vh;
+}
+.player6 {
+    right: 20vw;
+    top: 1vh;
 }
 .playerSpace .roundBet div {
     background: linear-gradient(45deg, #FFEB3B, #ff5b28);
@@ -176,8 +184,8 @@
     border: 0.5vw solid #595959;
     color: white;
     text-align: center;
-    left: 32vw;
-    top: 25vh;
+    left: 31.5vw;
+    top: 26vh;
 }   
 .game span#welcome, .game div#blinds, .game div#currentPlayerMsg {
     padding-left: 12px;
