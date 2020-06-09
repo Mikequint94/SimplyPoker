@@ -10,6 +10,7 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
   const [stage, setStage] = useState(false);
   const [currentPlayer, setCurrentPlayer] = useState('');
   const [currentBet, setCurrentBet] = useState(0);
+  const [recentRaise, setRecentRaise] = useState(0);
   const [smallBlind, setSmallBlind] = useState(0);
   const [pot, setPot] = useState(0);
   const [potentialBet, setPotentialBet] = useState(0);
@@ -178,27 +179,33 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
       classes  = 'grayedOut folded';
       callBet = 0;
     }
-    let minRaise = currentBet + 2 * smallBlind;
+
+    let minRaise = currentBet + recentRaise || 2 * smallBlind;
+    if (currentBet === 2 * smallBlind && !recentRaise) {
+      minRaise = 4 * smallBlind;
+    }
     let maxRaise = playerInfo[user].chips + playerInfo[user].roundBet;
+    let raiseWord = 'Raise To';
     if (minRaise > maxRaise) {
       minRaise = maxRaise;
+      raiseWord = 'All In';
+    }
+    if (potentialBet === maxRaise ) {
+      raiseWord = 'All In';
     }
     let callWord = 'Call';
     if (callBet >= playerInfo[user].chips) {
       callWord = 'All In';
       callBet = playerInfo[user].chips;
     }
-    if (currentBet) {
-      // add rules around this confusing thing later. only the first bet per round the next has to double?
-      //if grayed out cant click
-      // all in wording and logic
-    }
+    //if grayed out cant click
+    // all in wording and logic
     return (
       <div className={classes} id='playerControls'>
         <div className={callBet ? 'control' : 'control grayedOut'} onClick={() => foldHand()}>Fold</div>
         <div className='control' onClick={() => callHand(callBet)}>{callBet ? `${callWord} ${callBet}` : 'Check'}</div>
         <div>
-          <div className={playerInfo[user].chips > 0 && callWord === 'Call' ? 'control' : 'control grayedOut'} onClick={() => raiseBet(potentialBet)}>{playerInfo[user].chips > 0 && callWord === 'Call' ? `Raise to ${potentialBet}` : 'Raise'}</div>
+          <div className={playerInfo[user].chips > 0 && callWord === 'Call' ? 'control' : 'control grayedOut'} onClick={() => raiseBet(potentialBet)}>{playerInfo[user].chips > 0 && callWord === 'Call' ? `${raiseWord} ${potentialBet}` : 'Raise'}</div>
           { playerInfo[user].chips > 0 && callWord === 'Call' ? <Slider
             defaultValue={minRaise}
             step={2 * smallBlind}
@@ -231,6 +238,7 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
       socket.on(`start game ${roomId}`, (sPlayerInfo, sCurrentPlayer, sSmallBlind) => {
         console.log('start game', sPlayerInfo)
         const bigBlind = sSmallBlind * 2;
+        setRecentRaise(bigBlind);
         if (sCurrentPlayer === user && sPlayerInfo[user].role === 'Sm') {
           socket.emit(`bet ${roomId}`, user, sSmallBlind, 'bigBlind');
         } else if (sCurrentPlayer === user) {
@@ -250,19 +258,18 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
   }, [socket, roomId, user, usernameReady]);
   useEffect(() => {
     if (usernameReady) {
-      socket.on(`update board ${roomId}`, (sPlayerInfo, sCurrentPlayer, sStage, sCurrentBet, sSmallBlind) => {
-        console.log('update board', sPlayerInfo[user], sCurrentPlayer, sStage, sCurrentBet);
+      socket.on(`update board ${roomId}`, (sPlayerInfo, sCurrentPlayer, sStage, sCurrentBet, sSmallBlind, sRaisedAmount) => {
+        console.log('update board', sPlayerInfo[user], sCurrentPlayer, sStage, sCurrentBet, sRaisedAmount);
         const bigBlind = 2 * sSmallBlind;
         if (sCurrentPlayer === user && !['bigBlind', 'smallBlind'].includes(sStage)) {
           playAudio('yourturn');
         }
         if (sStage === 'raise') {
           setCurrentBet(sCurrentBet);
-          setPotentialBet(sCurrentBet + bigBlind);
+          setPotentialBet(sCurrentBet + sRaisedAmount);
         } else if (sStage === 'bigBlind' && sCurrentPlayer === user && sPlayerInfo[user].roundBet === 0) {
           socket.emit(`bet ${roomId}`, user, bigBlind, 'firstBet3P');
         } else if (sStage === 'smallBlind' && sCurrentPlayer === user && sPlayerInfo[user].roundBet === 0) {
-          console.log(user, ' betting small blind')
           socket.emit(`bet ${roomId}`, user, sSmallBlind, 'firstBet2P');
         } else if (sStage === 'roundEnd') {
           setCurrentBet(0);
@@ -270,6 +277,8 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
         }
         setCurrentPlayer(sCurrentPlayer);
         setPlayerInfo(sPlayerInfo);
+        console.log('raised amount', sRaisedAmount)
+        setRecentRaise(sRaisedAmount);
       });
     }
   }, [socket, roomId, user, usernameReady]);
@@ -315,7 +324,7 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
           setCurrentPlayer(sCurrentPlayer);
           setCurrentBet(sCurrentBet);
           setDealerCards(sDealerCards);
-          setPotentialBet(sCurrentBet + 2 * sSmallBlind);
+          setPotentialBet(sCurrentBet * 2);
           setSmallBlind(sSmallBlind);
           setStage(true);
         }

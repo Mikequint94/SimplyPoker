@@ -363,11 +363,15 @@ io.on('connection', (socket) => {
     console.log(user, amount, stage);
     room.users[user].chips -= amount;
     room.users[user].roundBet += amount;
+    let prevBet = room.currentBet;
+    let raisedAmount = room.currentBet;
+    // if (raisedAmount < 0) { raisedAmount = 0; }
     const currentPlayerIdx = room.roundPlayers.indexOf(user);
     room.currentPlayer = room.roundPlayers[(currentPlayerIdx + 1) % room.roundPlayers.length];
     if (stage === 'raise') {
       room.lastBetter = user;
       room.currentBet = room.users[user].roundBet;
+      raisedAmount = room.currentBet - prevBet;
     } else if (stage === 'firstBet3P' || stage === 'smallBlind') {
       room.currentBet = room.users[user].roundBet;
       room.lastBetter = room.currentPlayer;
@@ -375,9 +379,11 @@ io.on('connection', (socket) => {
       room.currentPlayer = user;
     } else if (!stage && room.currentPlayer === room.lastBetter) {
       stage = 'roundEnd';
+      room.currentBet = 0;
+      raisedAmount = 0;
       dealDealerCards();
     }
-    io.emit(`update board ${roomId}`, room.users, room.currentPlayer, stage, room.currentBet, room.smallBlind);
+    io.emit(`update board ${roomId}`, room.users, room.currentPlayer, stage, room.currentBet, room.smallBlind, raisedAmount);
   });
   socket.on(`fold ${roomId}`, (user, stage = '') => {
     console.log(room.roundPlayers)
