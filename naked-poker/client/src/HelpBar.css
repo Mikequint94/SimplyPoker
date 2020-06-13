@@ -1,0 +1,30 @@
+#left { 
+    top: 53vh;
+    position: absolute;
+    z-index: 5;
+}
+#left .sidebar {
+    position: relative;
+    top: -22vh;
+    transition: transform 0.5s;
+}
+#left.open {
+    width: 33vw; 
+}
+#left.open .icon {
+    width: 15px;
+}
+#left .icon { 
+    position: absolute;
+    z-index: 10;
+    width: 37px;
+    padding-top: 1vw;
+    height: 6vh;    
+    text-align: center;
+    font-size: 1rem;
+    -webkit-user-select: none;
+    user-select: none;
+    cursor: pointer;
+    background: #CDDC39;
+}
+#left .sidebar.closed { transform: translateX(-120%);}

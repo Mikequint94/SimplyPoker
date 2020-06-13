@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Slider from '@material-ui/core/Slider';
+import HelpBar from './HelpBar.js';
 import './Game.css';
 
 const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
@@ -143,27 +144,22 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
   //     return () => clearInterval(interval);
   //   }
   // }, [socket, roomId, currentPlayer, currentBet, playerInfo]);
- 
-  const callHand = (callBet) => {
-    if (currentPlayer !== user || stage === 'reveal') {
-      console.log('not your turn');
-    } else {
+  let autoCheckTimeOut;
+  const callHand = (callBet, canClick) => {
+    if (currentPlayer === user && stage !== 'reveal' && canClick && !playerInfo[user].folded) {
       console.log('called hand')
+      clearTimeout(autoCheckTimeOut);
       socket.emit(`bet ${roomId}`, user, callBet);
     }
   };
-  const foldHand = () => {
-    if (currentPlayer !== user || stage === 'reveal') {
-      console.log('not your turn');
-    } else {
+  const foldHand = (canClick) => {
+    if (currentPlayer === user && stage !== 'reveal' && canClick && !playerInfo[user].folded) {
       console.log('folded hand')
       socket.emit(`fold ${roomId}`, user);
     }
   };
-  const raiseBet = (bet) => {
-    if (currentPlayer !== user || stage === 'reveal') {
-      console.log('not your turn');
-    } else {
+  const raiseBet = (bet, canClick) => {
+    if (currentPlayer === user && stage === 'reveal' && canClick && !playerInfo[user].folded) {
       console.log('raised hand to ', bet)
       socket.emit(`bet ${roomId}`, user, bet - playerInfo[user].roundBet, 'raise');
     }
@@ -179,18 +175,22 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
       classes  = 'grayedOut folded';
       callBet = 0;
     }
-
+    
     let minRaise = currentBet + recentRaise || 2 * smallBlind;
     if (currentBet === 2 * smallBlind && !recentRaise) {
       minRaise = 4 * smallBlind;
     }
     let maxRaise = playerInfo[user].chips + playerInfo[user].roundBet;
     let raiseWord = 'Raise To';
+    let modPotentialBet = potentialBet;
+    if (potentialBet > maxRaise) {
+      modPotentialBet = maxRaise;
+    }
     if (minRaise > maxRaise) {
       minRaise = maxRaise;
       raiseWord = 'All In';
     }
-    if (potentialBet === maxRaise ) {
+    if (modPotentialBet === maxRaise ) {
       raiseWord = 'All In';
     }
     let callWord = 'Call';
@@ -198,14 +198,13 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
       callWord = 'All In';
       callBet = playerInfo[user].chips;
     }
-    //if grayed out cant click
     // all in wording and logic
     return (
       <div className={classes} id='playerControls'>
-        <div className={callBet ? 'control' : 'control grayedOut'} onClick={() => foldHand()}>Fold</div>
-        <div className='control' onClick={() => callHand(callBet)}>{callBet ? `${callWord} ${callBet}` : 'Check'}</div>
+        <div className={callBet ? 'control' : 'control grayedOut'} onClick={() => foldHand(callBet)}>Fold</div>
+        <div className={playerInfo[user].chips > 0 ? 'control' : 'control grayedOut'} onClick={() => callHand(callBet, playerInfo[user].chips > 0)}>{callBet ? `${callWord} ${callBet}` : 'Check'}</div>
         <div>
-          <div className={playerInfo[user].chips > 0 && callWord === 'Call' ? 'control' : 'control grayedOut'} onClick={() => raiseBet(potentialBet)}>{playerInfo[user].chips > 0 && callWord === 'Call' ? `${raiseWord} ${potentialBet}` : 'Raise'}</div>
+          <div className={playerInfo[user].chips > 0 && callWord === 'Call' ? 'control' : 'control grayedOut'} onClick={() => raiseBet(modPotentialBet, playerInfo[user].chips > 0 && callWord === 'Call')}>{playerInfo[user].chips > 0 && callWord === 'Call' ? `${raiseWord} ${modPotentialBet}` : 'Raise'}</div>
           { playerInfo[user].chips > 0 && callWord === 'Call' ? <Slider
             defaultValue={minRaise}
             step={2 * smallBlind}
@@ -233,6 +232,15 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
     )
   };
 
+  useEffect(() => {
+    if (stage && playerInfo[user].chips === 0 && currentBet - playerInfo[user].roundBet === 0 && currentPlayer === user && stage !== 'reveal') {
+      // eslint-disable-next-line
+      autoCheckTimeOut = setTimeout(() => {
+        callHand(0);
+      }, 500);
+    }
+    return () => clearTimeout(autoCheckTimeOut);
+  }, [user, currentPlayer, stage, playerInfo, currentBet]);
   useEffect(() => {
     if (usernameReady) {
       socket.on(`start game ${roomId}`, (sPlayerInfo, sCurrentPlayer, sSmallBlind) => {
@@ -399,6 +407,7 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
           <TableCards/>
           <PlayerHands/>
           <PlayerControls/>
+          <HelpBar/>
         </div> : <StartModal />}
     </div>
   );
