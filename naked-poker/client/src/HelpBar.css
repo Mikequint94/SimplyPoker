@@ -5,23 +5,28 @@
 }
 #left .sidebar {
     position: relative;
-    top: -22vh;
+    top: -21.3vh;
     transition: transform 0.5s;
 }
 #left.open {
     width: 33vw; 
 }
+#left.open .icon:hover {
+    opacity: 1;
+}
 #left.open .icon {
-    width: 15px;
+    opacity: 0.7;
 }
 #left .icon { 
     position: absolute;
     z-index: 10;
-    width: 37px;
+    width: 19px;
+    border: 2px solid #2d3c25;
+    border-left: none;
     padding-top: 1vw;
-    height: 6vh;    
+    height: 5.2vh;    
     text-align: center;
-    font-size: 1rem;
+    font-size: 0.9rem;
     -webkit-user-select: none;
     user-select: none;
     cursor: pointer;

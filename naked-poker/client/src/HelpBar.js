@@ -5,7 +5,7 @@ import rankings from './media/rankings.jpg';
 const HelpBar = () => {
     const [open, setOpen] = useState(false)
     let leftOpen = open ? 'open' : 'closed';
-    let iconText = open ? '<' : 'Help >';
+    let iconText = open ? '<' : '>';
 
     return (
         <div id='HelpBar'>

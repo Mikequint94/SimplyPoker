@@ -145,31 +145,36 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
   //   }
   // }, [socket, roomId, currentPlayer, currentBet, playerInfo]);
   let autoCheckTimeOut;
+  let dealingTimeout;
   const callHand = (callBet, canClick) => {
-    if (currentPlayer === user && stage !== 'reveal' && canClick && !playerInfo[user].folded) {
+    if (currentPlayer === user && stage !== 'reveal' && stage !== 'dealing' && canClick && !playerInfo[user].folded) {
       console.log('called hand')
       clearTimeout(autoCheckTimeOut);
       socket.emit(`bet ${roomId}`, user, callBet);
     }
   };
   const foldHand = (canClick) => {
-    if (currentPlayer === user && stage !== 'reveal' && canClick && !playerInfo[user].folded) {
+    if (currentPlayer === user && stage !== 'reveal' && stage !== 'dealing' && canClick && !playerInfo[user].folded) {
       console.log('folded hand')
       socket.emit(`fold ${roomId}`, user);
     }
   };
   const raiseBet = (bet, canClick) => {
-    if (currentPlayer === user && stage === 'reveal' && canClick && !playerInfo[user].folded) {
+    if (currentPlayer === user && stage !== 'reveal' && stage !== 'dealing' && canClick && !playerInfo[user].folded) {
       console.log('raised hand to ', bet)
       socket.emit(`bet ${roomId}`, user, bet - playerInfo[user].roundBet, 'raise');
     }
   };
 
+  const checkOthersAllIn = (player) => {
+    return player === user || playerInfo[player].chips <= 0;
+  }
+
   const PlayerControls = () => {
     if (!playerInfo[user]) {return null};
     let classes = 'grayedOut';
     let callBet = currentBet - playerInfo[user].roundBet;
-    if (currentPlayer === user && stage !== 'reveal') {
+    if (currentPlayer === user && stage !== 'reveal' && stage !== 'dealing') {
       classes = '';
     } else if (playerInfo[user].folded) {
       classes  = 'grayedOut folded';
@@ -198,14 +203,18 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
       callWord = 'All In';
       callBet = playerInfo[user].chips;
     }
+    let raiseClass = 'control';
+    if (playerInfo[user].chips <= 0 || callWord !== 'Call' || players.every(checkOthersAllIn)) {
+      raiseClass = 'control grayedOut';
+    }
     // all in wording and logic
     return (
       <div className={classes} id='playerControls'>
         <div className={callBet ? 'control' : 'control grayedOut'} onClick={() => foldHand(callBet)}>Fold</div>
         <div className={playerInfo[user].chips > 0 ? 'control' : 'control grayedOut'} onClick={() => callHand(callBet, playerInfo[user].chips > 0)}>{callBet ? `${callWord} ${callBet}` : 'Check'}</div>
         <div>
-          <div className={playerInfo[user].chips > 0 && callWord === 'Call' ? 'control' : 'control grayedOut'} onClick={() => raiseBet(modPotentialBet, playerInfo[user].chips > 0 && callWord === 'Call')}>{playerInfo[user].chips > 0 && callWord === 'Call' ? `${raiseWord} ${modPotentialBet}` : 'Raise'}</div>
-          { playerInfo[user].chips > 0 && callWord === 'Call' ? <Slider
+          <div className={raiseClass} onClick={() => raiseBet(modPotentialBet, raiseClass === 'control')}>{playerInfo[user].chips > 0 && callWord === 'Call' ? `${raiseWord} ${modPotentialBet}` : 'Raise'}</div>
+          { raiseClass === 'control' ? <Slider
             defaultValue={minRaise}
             step={2 * smallBlind}
             disabled={classes.startsWith('grayedOut')}
@@ -233,18 +242,18 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
   };
 
   useEffect(() => {
-    if (stage && playerInfo[user].chips === 0 && currentBet - playerInfo[user].roundBet === 0 && currentPlayer === user && stage !== 'reveal') {
+    if (stage && playerInfo[user] && playerInfo[user].chips === 0 && currentBet - playerInfo[user].roundBet === 0 && currentPlayer === user && stage !== 'reveal' && stage !== 'dealing' ) {
       // eslint-disable-next-line
       autoCheckTimeOut = setTimeout(() => {
-        callHand(0);
+        callHand(0, true);
       }, 500);
     }
     return () => clearTimeout(autoCheckTimeOut);
   }, [user, currentPlayer, stage, playerInfo, currentBet]);
   useEffect(() => {
     if (usernameReady) {
-      socket.on(`start game ${roomId}`, (sPlayerInfo, sCurrentPlayer, sSmallBlind) => {
-        console.log('start game', sPlayerInfo)
+      socket.on(`deal hand ${roomId}`, (sPlayerInfo, sCurrentPlayer, sSmallBlind) => {
+        console.log('deal hand', sPlayerInfo)
         const bigBlind = sSmallBlind * 2;
         setRecentRaise(bigBlind);
         if (sCurrentPlayer === user && sPlayerInfo[user].role === 'Sm') {
@@ -299,15 +308,23 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
         }
         if (sDealerCards === 'done') {
           console.log('game over!!  everyone flip');
+          clearTimeout(dealingTimeout);
           setStage('reveal');
           if (user === nextPlayer) {
             socket.emit(`calculate win ${roomId}`);
           }
         } else {
+          setStage('dealing');
           setDealerCards(sDealerCards);
+          clearTimeout(dealingTimeout);
+          // eslint-disable-next-line
+          dealingTimeout = setTimeout(() => {
+            setStage(true);
+          }, 600);
         }
       });
     }
+    return () => clearTimeout(dealingTimeout);
   }, [socket, roomId, user, usernameReady]);
   useEffect(() => {
     if (usernameReady) {
@@ -317,7 +334,7 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
         setPlayerInfo(sPlayerInfo);
         setPot(sPot);
         if (user === winner) {
-          socket.emit(`start game ${roomId}`);
+          socket.emit(`deal hand ${roomId}`);
         };
       });
     }
@@ -386,7 +403,7 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
                 if (players.length === 5) {
                   setWelcomeText(`Room ${roomId}`);
                 }
-                socket.emit(`start game ${roomId}`, true);
+                socket.emit(`deal hand ${roomId}`, true);
               } else {
                 setErrorMessage('Must have between 2 and 5 players to start game');
               }
