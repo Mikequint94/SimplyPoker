@@ -220,12 +220,51 @@ const findBestPlayersAndHands = (room) => {
   return [overallBestHands, overallBestRank, bestPlayers];
 }
 
-const winnerGetsFullPot = (room, winner) => {
-  const winnerTotalBet = room.users[winner].totalHandBet;
-  if (room.roundPlayers.every(player => player === winner || room.users[player].totalHandBet <= winnerTotalBet)) {
-    return true;
-  }
-  return false;
+// const winnerGetsFullPot = (room, winner) => {
+//   const winnerTotalBet = room.users[winner].totalHandBet;
+//   if (room.roundPlayers.every(player => player === winner || room.users[player].totalHandBet <= winnerTotalBet)) {
+//     return true;
+//   }
+//   return false;
+// }
+
+const calculateWin = (room, roomId) => {
+  const [overallBestHands, overallBestRank, bestPlayers] = findBestPlayersAndHands(room);
+    console.log(overallBestHands)
+    console.log(bestPlayers)
+    console.log(handRankMapper[overallBestRank]);
+    let winnerArray = findWinner(overallBestHands, bestPlayers, handRankMapper[overallBestRank]);
+    sortedWinners = winnerArray.sort((a, b) => room.users[a].totalHandBet - room.users[b].totalHandBet);
+    let splitDenominator = sortedWinners.length;
+    let sharedWin = '';
+    if (sortedWinners.length > 1) {
+      sharedWin = 'in a shared win '
+    }
+    sortedWinners.forEach(winner => {
+      room.users[winner].winner = true;
+      let winnerTotalBet = room.users[winner].totalHandBet;
+      let prevPot = room.pot;
+      room.roundPlayers.forEach(player => {
+        let winnerAdds = Math.min(room.users[player].totalHandBet, winnerTotalBet)/splitDenominator;
+        room.users[winner].chips += winnerAdds;
+        room.users[player].totalHandBet -= winnerAdds;
+        room.pot -= winnerAdds;
+      })
+      splitDenominator -= 1;
+      console.log(`winner: ${winner}`)
+      console.log(`userInfo: `,room.users);
+      io.emit(`chat message ${roomId}`, `${winner} won ${prevPot - room.pot} ${sharedWin}with a ${room.users[winner].handCombo}!`, '#282c34');
+    })
+    room.roundPlayers = room.roundPlayers.filter(player => room.users[player].totalHandBet > 0);
+    if (room.roundPlayers.length > 1) {
+      calculateWin(room, roomId);
+      return;
+    } else if (room.roundPlayers.length) {
+      room.users[room.roundPlayers[0]].chips += room.pot;
+      io.emit(`chat message ${roomId}`, `${room.roundPlayers[0]} got back ${room.pot} this round for overbetting opponent`, '#282c34');
+    }
+  room.pot = 0;
+  io.emit(`win ${roomId}`, room.users, room.pot, winnerArray[0]);
 }
 // console.log(findWinner(
 //   [
@@ -529,39 +568,7 @@ io.on('connection', (socket) => {
     io.emit(`update board ${roomId}`, room.users, room.currentPlayer, stage);
   });
   socket.on(`calculate win ${roomId}`, () =>{
-    const [overallBestHands, overallBestRank, bestPlayers] = findBestPlayersAndHands(room);
-    console.log(overallBestHands)
-    console.log(bestPlayers)
-    console.log(handRankMapper[overallBestRank]);
-    let winnerArray = findWinner(overallBestHands, bestPlayers, handRankMapper[overallBestRank]);
-    if (winnerArray.length === 1) {
-      const winner = winnerArray[0];
-      // only works for 2 ppl so far!! Build on this. gonna need to cut player and recalculate win if winner doesnt get all
-      console.log(room.users);
-      if (winnerGetsFullPot(room, winner)) {
-        room.users[winner].chips += room.pot;
-      } else {
-        room.roundPlayers.forEach(player => {
-          if (player === winner) {
-            room.users[player].chips += room.users[player].totalHandBet * 2;
-          } else {
-            room.users[player].chips += room.pot - room.users[winner].totalHandBet * 2;
-            io.emit(`chat message ${roomId}`, `${player} got back ${room.pot - room.users[winner].totalHandBet * 2} this round for overbetting opponent`, '#282c34');
-          }
-        })
-      }
-      room.users[winner].winner = true;
-      io.emit(`chat message ${roomId}`, `${winner} won ${room.pot} this round with a ${room.users[winner].handCombo}!`, '#282c34');
-    } else {
-      const splitPot = Math.floor(room.pot / winnerArray.length);
-      winnerArray.forEach(winner => {
-        room.users[winner].chips += splitPot;
-        room.users[winner].winner = true;
-        io.emit(`chat message ${roomId}`, `${winner} won ${splitPot} in a shared win with a ${room.users[winner].handCombo}!`, '#282c34');
-      })
-    }
-    room.pot = 0;
-    io.emit(`win ${roomId}`, room.users, room.pot, winnerArray[0]);
+    calculateWin(room, roomId);
   });
 
   socket.on('disconnect', () => {
