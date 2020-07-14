@@ -1,7 +1,8 @@
 #left { 
     top: 53vh;
     position: absolute;
-    z-index: 5;
+    width: 0px;
+    height: 0px;
 }
 #left .sidebar {
     position: relative;
@@ -10,6 +11,7 @@
 }
 #left.open {
     width: 33vw; 
+    z-index: 5;
 }
 #left.open .icon:hover {
     opacity: 1;
@@ -32,4 +34,7 @@
     cursor: pointer;
     background: #CDDC39;
 }
-#left .sidebar.closed { transform: translateX(-120%);}
+#left .sidebar.closed { 
+    transform: translateX(-120%);
+    z-index: -1;
+}

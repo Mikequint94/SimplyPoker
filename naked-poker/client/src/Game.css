@@ -152,22 +152,28 @@
 }
 #playerControls .control {
     height: calc( 10vh - 4px );
-    width: calc( 10vw - 4px );
+    width: calc( 10vw - 8px );
     background: black;
     border: 2px solid yellow;
     color: white;
     margin: 0 3px;
+    display: flex;
     text-align: center;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.4rem;
+    padding: 0 2px
+}
+#playerControls .raiseControl {
+    font-size: 1.3rem;
 }
 #playerControls .control:hover {
     background: #2f048d;
 }
-#playerControls.grayedOut div,
+#playerControls.grayedOut div.control,
 #playerControls .grayedOut {
     background: #684545;
-    border: none;
-    height: 10vh;
-    width: 10vw;
+    border: 2px solid gray;
 }
 #playerControls.grayedOut div:hover,
 #playerControls .grayedOut:hover {
@@ -195,6 +201,9 @@
     #tableCards .dealerCards {
         width: 33vw;
     }
+    #playerControls .raiseControl {
+        font-size: 1.2rem;
+    }
 }
 @media screen and (max-width: 480px) {
     .game .modal h3 {
@@ -216,17 +225,27 @@
     }
     .game #playerControls {
         flex-direction: column;
-        top: 47vh;
+        top: calc(47vh - 10px);
         font-size: 1.2rem;
     }
     .game #playerControls div{
         height: 0;
     }
+    .game #playerControls div .sliderDiv{
+        margin: 0px 7px;
+        position: relative;
+        bottom: 6px;
+        width: calc(30vw - 4px);
+    }
     .game #playerControls .control {
-        width: 30vw;
+        width: calc(30vw - 4px);
         margin-top: 10px;
         height: fit-content;
-        padding: 5px 0;
+        padding: 5px 2px;
+        font-size: 1.1rem;
+    }
+    .game #playerControls .raiseControl {
+        height: 36px;
     }
     .playerSpace {
         font-size: 1.1rem;

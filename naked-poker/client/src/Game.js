@@ -213,8 +213,8 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
         <div className={callBet ? 'control' : 'control grayedOut'} onClick={() => foldHand(callBet)}>Fold</div>
         <div className={playerInfo[user].chips > 0 ? 'control' : 'control grayedOut'} onClick={() => callHand(callBet, playerInfo[user].chips > 0)}>{callBet ? `${callWord} ${callBet}` : 'Check'}</div>
         <div>
-          <div className={raiseClass} onClick={() => raiseBet(modPotentialBet, raiseClass === 'control')}>{playerInfo[user].chips > 0 && callWord === 'Call' ? `${raiseWord} ${modPotentialBet}` : 'Raise'}</div>
-          { raiseClass === 'control' ? <Slider
+          <div className={raiseClass + ' raiseControl'} onClick={() => raiseBet(modPotentialBet, raiseClass === 'control')}>{playerInfo[user].chips > 0 && callWord === 'Call' ? `${raiseWord} ${modPotentialBet}` : 'Raise'}</div>
+          { raiseClass === 'control' ? <div className="sliderDiv"><Slider
             defaultValue={minRaise}
             step={2 * smallBlind}
             disabled={classes.startsWith('grayedOut')}
@@ -223,7 +223,7 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
             max={maxRaise}
             valueLabelDisplay="auto"
             onChangeCommitted={(e, val) => setPotentialBet(val)}
-          /> : null}
+          /></div> : null}
         </div>
       </div>
     )

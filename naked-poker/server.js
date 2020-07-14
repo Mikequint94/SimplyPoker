@@ -424,7 +424,7 @@ io.on('connection', (socket) => {
       room.allPlayers.push(user);
       room.users[user] = {};
       room.users[user].socketId = socket.id;
-      room.users[user].chips = 5000 + Math.floor(Math.random()*10)*1000; 
+      room.users[user].chips = 10000; //5000 + Math.floor(Math.random()*10)*1000; 
       room.users[user].color = room.allColors.splice(Math.floor(Math.random()*room.allColors.length), 1);
       io.emit(`chat message ${roomId}`, user + " has joined the chat!", '#282c34');
     } else {
