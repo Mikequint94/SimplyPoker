@@ -164,20 +164,29 @@
     font-size: 1.4rem;
     padding: 0 2px
 }
+#playerControls.grayedOut div div.sliderDiv:hover{
+    cursor: default;
+}
+#playerControls .sliderDiv:hover {
+   cursor: pointer;
+}
 #playerControls .raiseControl {
     font-size: 1.3rem;
 }
 #playerControls .control:hover {
     background: #2f048d;
+    cursor: pointer;
 }
 #playerControls.grayedOut div.control,
 #playerControls .grayedOut {
     background: #684545;
     border: 2px solid gray;
+    cursor: default;
 }
-#playerControls.grayedOut div:hover,
+#playerControls.grayedOut div.control:hover,
 #playerControls .grayedOut:hover {
     background: #684545;
+    cursor: default;
 }
 #tableCards {
     display: flex;
