@@ -245,7 +245,7 @@ const calculateWin = (room, roomId) => {
       let winnerTotalBet = room.users[winner].totalHandBet;
       let prevPot = room.pot;
       room.roundPlayers.forEach(player => {
-        let winnerAdds = Math.floor(Math.min(room.users[player].totalHandBet, winnerTotalBet)/splitDenominator);
+        let winnerAdds = Math.round(Math.min(room.users[player].totalHandBet, winnerTotalBet)/splitDenominator);
         room.users[winner].chips += winnerAdds;
         room.users[player].totalHandBet -= winnerAdds;
         room.pot -= winnerAdds;
