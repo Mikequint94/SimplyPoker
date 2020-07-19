@@ -491,7 +491,7 @@ io.on('connection', (socket) => {
     } else {
       setTimeout(() => {
         io.emit(`deal hand ${roomId}`, room.users, room.currentPlayer, room.smallBlind);
-      }, 4500);
+      }, 7000);
     }
   });
   socket.on(`bet ${roomId}`, (user, amount, stage = '') => {

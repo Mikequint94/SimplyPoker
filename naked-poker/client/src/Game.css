@@ -94,6 +94,11 @@
 .playerSpace.winner {
     border-color: #c4ff3b;
     box-shadow: 0em 0px 1em 5px #FFEB3B;
+    background: #4b3d29;
+}
+.playerSpace.active {
+    background: #4a3a4b;
+    box-shadow: inset 0em 0px 1em 1px #fa2cd7a1;
 }
 .playerSpace .hidden{
     background: linear-gradient(#1dd4ff, #ffe500);

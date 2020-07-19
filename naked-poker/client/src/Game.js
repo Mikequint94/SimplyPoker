@@ -9,6 +9,7 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
   const [playerInfo, setPlayerInfo] = useState(false);
   const [dealerCards, setDealerCards] = useState([]);
   const [stage, setStage] = useState(false);
+  const [bettingAllowed, setBettingAllowed] = useState(false);
   const [currentPlayer, setCurrentPlayer] = useState('');
   const [currentBet, setCurrentBet] = useState(0);
   const [recentRaise, setRecentRaise] = useState(0);
@@ -75,6 +76,8 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
       classes += ' folded';
     } else if (playerInfo[player].winner) {
       classes += ' winner'
+    } else if (currentPlayer === player && stage === true) {
+      classes += ' active'
     }
     return classes;
   };
@@ -147,20 +150,20 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
   let autoCheckTimeOut;
   let dealingTimeout;
   const callHand = (callBet, canClick) => {
-    if (currentPlayer === user && stage !== 'reveal' && stage !== 'dealing' && canClick && !playerInfo[user].folded) {
+    if (currentPlayer === user && bettingAllowed && stage !== 'reveal' && stage !== 'dealing' && canClick && !playerInfo[user].folded) {
       console.log('called hand')
       clearTimeout(autoCheckTimeOut);
       socket.emit(`bet ${roomId}`, user, callBet);
     }
   };
   const foldHand = (canClick) => {
-    if (currentPlayer === user && stage !== 'reveal' && stage !== 'dealing' && canClick && !playerInfo[user].folded) {
+    if (currentPlayer === user && bettingAllowed && stage !== 'reveal' && stage !== 'dealing' && canClick && !playerInfo[user].folded) {
       console.log('folded hand')
       socket.emit(`fold ${roomId}`, user);
     }
   };
   const raiseBet = (bet, canClick) => {
-    if (currentPlayer === user && stage !== 'reveal' && stage !== 'dealing' && canClick && !playerInfo[user].folded) {
+    if (currentPlayer === user && bettingAllowed && stage !== 'reveal' && stage !== 'dealing' && canClick && !playerInfo[user].folded) {
       console.log('raised hand to ', bet)
       socket.emit(`bet ${roomId}`, user, bet - playerInfo[user].roundBet, 'raise');
     }
@@ -174,7 +177,7 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
     if (!playerInfo[user]) {return null};
     let classes = 'grayedOut';
     let callBet = currentBet - playerInfo[user].roundBet;
-    if (currentPlayer === user && stage !== 'reveal' && stage !== 'dealing') {
+    if (currentPlayer === user && stage !== 'reveal' && stage !== 'dealing' && bettingAllowed) {
       classes = '';
     } else if (playerInfo[user].folded) {
       classes  = 'grayedOut folded';
@@ -278,8 +281,9 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
       socket.on(`update board ${roomId}`, (sPlayerInfo, sCurrentPlayer, sStage, sCurrentBet, sSmallBlind, sRaisedAmount) => {
         console.log('update board', sPlayerInfo[user], sCurrentPlayer, sStage, sCurrentBet, sRaisedAmount);
         const bigBlind = 2 * sSmallBlind;
-        if (sCurrentPlayer === user && !['bigBlind', 'smallBlind'].includes(sStage)) {
+        if (sCurrentPlayer === user && !['bigBlind', 'smallBlind'].includes(sStage) && !sPlayerInfo[user].winner) {
           playAudio('yourturn');
+          setBettingAllowed(true);
         }
         if (sStage === 'raise') {
           setCurrentBet(sCurrentBet);
@@ -310,6 +314,7 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
           console.log('game over!!  everyone flip');
           clearTimeout(dealingTimeout);
           setStage('reveal');
+          setBettingAllowed(false);
           if (user === nextPlayer) {
             socket.emit(`calculate win ${roomId}`);
           }
@@ -329,6 +334,7 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
   useEffect(() => {
     if (usernameReady) {
       socket.on(`win ${roomId}`, (sPlayerInfo, sPot, winner) => {
+        setBettingAllowed(false);
         playAudio('win');
         setCurrentPlayer('');
         setPlayerInfo(sPlayerInfo);
