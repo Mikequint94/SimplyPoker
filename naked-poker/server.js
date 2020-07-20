@@ -220,14 +220,6 @@ const findBestPlayersAndHands = (room) => {
   return [overallBestHands, overallBestRank, bestPlayers];
 }
 
-// const winnerGetsFullPot = (room, winner) => {
-//   const winnerTotalBet = room.users[winner].totalHandBet;
-//   if (room.roundPlayers.every(player => player === winner || room.users[player].totalHandBet <= winnerTotalBet)) {
-//     return true;
-//   }
-//   return false;
-// }
-
 const calculateWin = (room, roomId) => {
   const [overallBestHands, overallBestRank, bestPlayers] = findBestPlayersAndHands(room);
     console.log(overallBestHands)
@@ -565,7 +557,7 @@ io.on('connection', (socket) => {
       room.lastBetter = room.currentPlayer;
     }
     console.log(`roundPlayers ${room.roundPlayers}, nextPlayer ${room.currentPlayer}, lastBetter ${room.lastBetter}`);
-    io.emit(`update board ${roomId}`, room.users, room.currentPlayer, stage);
+    io.emit(`update board ${roomId}`, room.users, room.currentPlayer, stage, room.currentBet, room.smallBlind);
   });
   socket.on(`calculate win ${roomId}`, () =>{
     calculateWin(room, roomId);
