@@ -125,7 +125,7 @@ const compareFinalHands = (bestHands) => {
     cards = cards.sort((a,b) => b.val - a.val);
     console.log(cards);
     cards.forEach(card => {
-      if (card.val < cards[0].val) {
+      if (!card.val || card.val < cards[0].val) {
         bestPlayerIdxs = bestPlayerIdxs.filter(player => player !== card.player);
       }
     })
@@ -147,31 +147,48 @@ const handTypeMapper = {
 }
 
 const findHighestHandIdx = (bestHands, handType) => {
-  const cardToCompare = handTypeMapper[handType] - 1;
   let bestPlayerIdx = new Set();
-  let bestCard = '2';
   let comparingHands = Array.from(Array(bestHands.length), () => []);
-  bestHands.forEach((playerHands, playerIdx) => {
-    playerHands.forEach((hand) => {
-      let sortedHand = hand.sort((a,b) => b-a);
-      for (let i = 0; i < (5 - cardToCompare); i++) {
-        if (sortedHand[i] === sortedHand[i + cardToCompare]) {
-          if (sortedHand[i] > bestCard) {
-            bestCard = sortedHand[i];
-            bestPlayerIdx = new Set([playerIdx]);
-            comparingHands = Array.from(Array(bestHands.length), () => []);
-            comparingHands[playerIdx] = sortedHand;  
-            // console.log(comparingHands)
-          } else if (sortedHand[i] === bestCard) {
-            bestPlayerIdx.add(playerIdx);
-            comparingHands[playerIdx] = compareTwoHands(comparingHands[playerIdx], sortedHand);
-            // console.log(comparingHands)
-          }
-          break;
+  if (handType === '2 Pair') {
+    let bestPairs = ['3','2'];
+    bestHands.forEach((playerHands, playerIdx) => {
+      playerHands.forEach((hand) => {
+        let sortedHand = hand.sort((a,b) => b-a);
+        const handPairs = [sortedHand[1], sortedHand[3]];
+        if (handPairs[0] > bestPairs[0] || (handPairs[0] === bestPairs[0] && handPairs[1] > bestPairs[1])) {
+          bestPairs = handPairs;
+          bestPlayerIdx = new Set([playerIdx]);
+          comparingHands = Array.from(Array(bestHands.length), () => []);
+          comparingHands[playerIdx] = sortedHand;  
+        } else if (handPairs[0] === bestPairs[0] && handPairs[1] === bestPairs[1]) {
+          bestPlayerIdx.add(playerIdx);
+          comparingHands[playerIdx] = compareTwoHands(comparingHands[playerIdx], sortedHand);
         }
-      }
+      });
     });
-  });
+  } else {
+    const cardToCompare = handTypeMapper[handType] - 1;
+    let bestCard = '2';
+    bestHands.forEach((playerHands, playerIdx) => {
+      playerHands.forEach((hand) => {
+        let sortedHand = hand.sort((a,b) => b-a);
+        for (let i = 0; i < (5 - cardToCompare); i++) {
+          if (sortedHand[i] === sortedHand[i + cardToCompare]) {
+            if (sortedHand[i] > bestCard) {
+              bestCard = sortedHand[i];
+              bestPlayerIdx = new Set([playerIdx]);
+              comparingHands = Array.from(Array(bestHands.length), () => []);
+              comparingHands[playerIdx] = sortedHand;  
+            } else if (sortedHand[i] === bestCard) {
+              bestPlayerIdx.add(playerIdx);
+              comparingHands[playerIdx] = compareTwoHands(comparingHands[playerIdx], sortedHand);
+            }
+            break;
+          }
+        }
+      });
+    });
+  }
   if (bestPlayerIdx.size === 1) {
     return [[...bestPlayerIdx][0]];
   } else {
@@ -236,7 +253,7 @@ const calculateWin = (room, roomId) => {
       room.users[winner].winner = true;
       let winnerTotalBet = room.users[winner].totalHandBet;
       let prevPot = room.pot;
-      room.roundPlayers.forEach(player => {
+      room.allPlayers.forEach(player => {
         let winnerAdds = Math.round(Math.min(room.users[player].totalHandBet, winnerTotalBet)/splitDenominator);
         room.users[winner].chips += winnerAdds;
         room.users[player].totalHandBet -= winnerAdds;
@@ -261,16 +278,20 @@ const calculateWin = (room, roomId) => {
 // console.log(findWinner(
 //   [
 //     [
-//       [ 11, 12, 10, 8, 4 ],
-//       [ 3, 13, 12, 11, 15 ]
+//       [ 11, 12, 11, 8, 8 ],
+//       [ 3, 3, 11, 11, 4 ]
 //     ],
 //     [
-//       [ 9, 11, 14, 12, 8 ],
-//       [ 13, 9, 15, 3, 8 ]
+//       [ 9, 11, 11, 8, 8 ],
+//       [ 4, 3, 4, 3, 8 ]
+//     ],
+//     [
+//       [ 10, 11, 10, 8, 8 ],
+//       [ 11, 11, 8, 8, 12 ]
 //     ]
-//   ], ['mike', 'ali'], High Card'))
+//   ], ['mike', 'ali', 'logan'], '2 Pair'))
 // console.log(findWinner([[[4,6,5,8,8]],[[4,8,6,3,4],[4,8,6,8,12]]], ['mike','chy'], '1 Pair'))
-// console.log(findWinner([[[4,5,6,7,8]],[[4,5,6,7,8]],[[4,5,6,7,8]]], ['mike','chy', 'ali'], 'Straight'))
+// console.log(findWinner([[[5,6,7,8,9]],[[4,5,6,7,8]],[[5,6,7,8,9]]], ['mike','chy', 'ali'], 'Straight'))
 // console.log(findWinner([[[4,6,6,8,8]],[[5,6,6,3,5],[8,2,9,8,9]]], ['mike','chy'], '2 Pair'))
 // console.log(findWinner([[[8,6,6,8,8]],[[5,6,6,5,5],[8,8,9,8,9]]], ['mike','chy'], 'Full House'))
 
