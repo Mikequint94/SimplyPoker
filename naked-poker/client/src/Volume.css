@@ -1,0 +1,18 @@
+#volumeBar {
+    width: 160px;
+    padding: 3px 10px;
+    float: right;
+}
+#volumeBar .MuiGrid-spacing-xs-2 > .MuiGrid-item {
+    padding: 8px 5px;
+}
+@media screen and (max-width: 950px) {
+    #volumeBar {
+        width: 145px;
+    }
+}
+@media screen and (max-width: 600px) {
+    #volumeBar {
+        display: none;
+    }
+}

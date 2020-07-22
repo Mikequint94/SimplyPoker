@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './Chat.css';
 
-const Chat = ({socket, roomId}) => {
+const Chat = ({socket, roomId, volume}) => {
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState([]);
 
@@ -16,9 +16,10 @@ const Chat = ({socket, roomId}) => {
     )
   };
 
-  const playAudio = (dataKey) => {
+  const playAudio = (dataKey, playVolume) => {
     const audio = document.querySelector(`audio[data-key="${dataKey}"]`);
     if(!audio) return;
+    audio.volume = playVolume/100;
     const playPromise = audio.play();
     if (playPromise !== undefined) {
       playPromise.then(_ => {
@@ -36,14 +37,17 @@ const Chat = ({socket, roomId}) => {
         setMessages(oldMessages => [...oldMessages, {msg, color}]);
         let sliced = msg.slice(msg.length-16, msg.length);
         if (sliced === "joined the chat!") {
-          playAudio('join');
+          playAudio('join', volume);
         } else if (sliced === "s left the chat!") {
-          playAudio('leave');
+          playAudio('leave', volume);
         } else {
-          playAudio('chat');
+          playAudio('chat', volume);
         }
       });
-  }, [socket, roomId]);
+      return () => {
+        socket.off(`chat message ${roomId}`);
+      }
+  }, [socket, roomId, volume]);
 
   const sendMessage = () => {
     if (message) {

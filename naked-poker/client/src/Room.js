@@ -17,6 +17,11 @@ const Room = ({ match }) => {
 
   const [socket, setSocket] = useState(null);
   const [usernameReady, setUsernameReady] = useState(false);
+  const [volume, setVolume] = React.useState(50);
+
+  const changeVolume = (e, newVolume) => {
+    setVolume(newVolume);
+  };
   
   const [allPlayers, setAllPlayers] = useState([]);
   useEffect(() => {
@@ -34,9 +39,9 @@ const Room = ({ match }) => {
   
   return (
     <div className="room">
-      { socket ? <Game roomId={roomId} socket={socket} setUsernameReady={setUsernameReady} usernameReady={usernameReady} players={allPlayers}/> : 
+      { socket ? <Game roomId={roomId} socket={socket} setUsernameReady={setUsernameReady} usernameReady={usernameReady} players={allPlayers}  volume={volume} changeVolume={changeVolume}/> : 
          <div>loading...</div>}
-      { socket && usernameReady ? <Chat socket={socket} roomId={roomId}/> : null}
+      { socket && usernameReady ? <Chat socket={socket} roomId={roomId} volume={volume}/> : null}
     </div>
   );
 }

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import Slider from '@material-ui/core/Slider';
 import HelpBar from './HelpBar.js';
+import VolumeBar from './Volume.js';
 import './Game.css';
 
-const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
+const Game = ({roomId, players, socket, setUsernameReady, usernameReady, volume, changeVolume}) => {
   // const smallBlind = 100;
   // const bigBlind = 2 * smallBlind;
   const [playerInfo, setPlayerInfo] = useState(false);
@@ -30,9 +31,10 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
     }
   };
 
-  const playAudio = (dataKey) => {
+  const playAudio = (dataKey, playVolume) => {
     const audio = document.querySelector(`audio[data-key="${dataKey}"]`);
     if(!audio) return;
+    audio.volume = playVolume/100;
     const playPromise = audio.play();
     if (playPromise !== undefined) {
       playPromise.then(_ => {
@@ -265,7 +267,7 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
           console.log(user, ' big blind')
           socket.emit(`bet ${roomId}`, user, bigBlind, 'smallBlind');
         }
-        playAudio('newgame');
+        playAudio('newgame', volume);
         setDealerCards([]);
         setCurrentBet(bigBlind);
         setPotentialBet(2 * bigBlind);
@@ -275,14 +277,14 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
         setStage(true);
       });
     }
-  }, [socket, roomId, user, usernameReady]);
+  }, [socket, roomId, user, usernameReady, volume]);
   useEffect(() => {
     if (usernameReady) {
       socket.on(`update board ${roomId}`, (sPlayerInfo, sCurrentPlayer, sStage, sCurrentBet, sSmallBlind, sRaisedAmount) => {
         console.log('update board', sPlayerInfo[user], sCurrentPlayer, sStage, sCurrentBet, sRaisedAmount);
         const bigBlind = 2 * sSmallBlind;
         if (sCurrentPlayer === user && !['bigBlind', 'smallBlind'].includes(sStage) && !sPlayerInfo[user].winner) {
-          playAudio('yourturn');
+          playAudio('yourturn', volume);
           setBettingAllowed(true);
         }
         if (sStage === 'raise') {
@@ -302,11 +304,11 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
         setRecentRaise(sRaisedAmount);
       });
     }
-  }, [socket, roomId, user, usernameReady]);
+  }, [socket, roomId, user, usernameReady, volume]);
   useEffect(() => {
     if (usernameReady) {
       socket.on(`flip card ${roomId}`, (sDealerCards, nextPlayer, sPot) => {
-        playAudio('flipcard');
+        playAudio('flipcard', volume);
         if (sPot) {
           setPot(sPot);
         }
@@ -330,12 +332,12 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
       });
     }
     return () => clearTimeout(dealingTimeout);
-  }, [socket, roomId, user, usernameReady]);
+  }, [socket, roomId, user, usernameReady, volume]);
   useEffect(() => {
     if (usernameReady) {
       socket.on(`win ${roomId}`, (sPlayerInfo, sPot, winner) => {
         setBettingAllowed(false);
-        playAudio('win');
+        playAudio('win', volume);
         setCurrentPlayer('');
         setPlayerInfo(sPlayerInfo);
         setPot(sPot);
@@ -344,7 +346,7 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
         };
       });
     }
-  }, [socket, roomId, user, usernameReady]);
+  }, [socket, roomId, user, usernameReady, volume]);
   useEffect(() => {
     if (usernameReady) {
       socket.on(`rejoin game ${roomId}`, (sUser, sPlayerInfo, sPot, sCurrentPlayer, sDealerCards, sCurrentBet, sSmallBlind) => {
@@ -423,6 +425,7 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady}) => {
   
   return (
     <div className="game">
+      <VolumeBar volume={volume} changeVolume={changeVolume}/>
       { stage ? <span id='welcome'>{welcomeText}<br /></span> : <span>Invite friends to play with code: {roomId}<br /></span>}
       { stage && playerInfo ? <div id='blinds'>Blinds: {smallBlind}/{2 * smallBlind}<br/></div> : '' }
       { stage && playerInfo && currentPlayer ? <div id='currentPlayerMsg'>{currentPlayer}'s turn</div> : '' }
