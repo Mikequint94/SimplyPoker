@@ -5,8 +5,6 @@ import VolumeBar from './Volume.js';
 import './Game.css';
 
 const Game = ({roomId, players, socket, setUsernameReady, usernameReady, volume, changeVolume}) => {
-  // const smallBlind = 100;
-  // const bigBlind = 2 * smallBlind;
   const [playerInfo, setPlayerInfo] = useState(false);
   const [dealerCards, setDealerCards] = useState([]);
   const [stage, setStage] = useState(false);
@@ -15,6 +13,7 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady, volume,
   const [currentBet, setCurrentBet] = useState(0);
   const [recentRaise, setRecentRaise] = useState(0);
   const [smallBlind, setSmallBlind] = useState(0);
+  const [gameSettings, setGameSettings] = useState({blindsIncrease: false});
   const [pot, setPot] = useState(0);
   const [potentialBet, setPotentialBet] = useState(0);
   const [errorMessage, setErrorMessage] = useState(false);
@@ -149,23 +148,27 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady, volume,
   //     return () => clearInterval(interval);
   //   }
   // }, [socket, roomId, currentPlayer, currentBet, playerInfo]);
-  let autoCheckTimeOut;
+  let autoCheckAllInTimeout;
+  let reminderBeepTimeout;
   let dealingTimeout;
   const callHand = (callBet, canClick) => {
     if (currentPlayer === user && bettingAllowed && stage !== 'reveal' && stage !== 'dealing' && canClick && !playerInfo[user].folded) {
       console.log('called hand')
-      clearTimeout(autoCheckTimeOut);
+      clearTimeout(reminderBeepTimeout);
+      clearTimeout(autoCheckAllInTimeout);
       socket.emit(`bet ${roomId}`, user, callBet);
     }
   };
   const foldHand = (canClick) => {
     if (currentPlayer === user && bettingAllowed && stage !== 'reveal' && stage !== 'dealing' && canClick && !playerInfo[user].folded) {
+      clearTimeout(reminderBeepTimeout);
       console.log('folded hand')
       socket.emit(`fold ${roomId}`, user);
     }
   };
   const raiseBet = (bet, canClick) => {
     if (currentPlayer === user && bettingAllowed && stage !== 'reveal' && stage !== 'dealing' && canClick && !playerInfo[user].folded) {
+      clearTimeout(reminderBeepTimeout);
       console.log('raised hand to ', bet)
       socket.emit(`bet ${roomId}`, user, bet - playerInfo[user].roundBet, 'raise');
     }
@@ -249,11 +252,11 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady, volume,
   useEffect(() => {
     if (stage && playerInfo[user] && playerInfo[user].chips === 0 && currentBet - playerInfo[user].roundBet === 0 && currentPlayer === user && stage !== 'reveal' && stage !== 'dealing' ) {
       // eslint-disable-next-line
-      autoCheckTimeOut = setTimeout(() => {
+      autoCheckAllInTimeout = setTimeout(() => {
         callHand(0, true);
       }, 500);
     }
-    return () => clearTimeout(autoCheckTimeOut);
+    return () => clearTimeout(autoCheckAllInTimeout);
   }, [user, currentPlayer, stage, playerInfo, currentBet]);
   useEffect(() => {
     if (usernameReady) {
@@ -277,6 +280,9 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady, volume,
         setStage(true);
       });
     }
+    return () => {
+      socket.off(`deal hand ${roomId}`);
+    }
   }, [socket, roomId, user, usernameReady, volume]);
   useEffect(() => {
     if (usernameReady) {
@@ -285,6 +291,11 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady, volume,
         const bigBlind = 2 * sSmallBlind;
         if (sCurrentPlayer === user && !['bigBlind', 'smallBlind'].includes(sStage) && !sPlayerInfo[user].winner) {
           playAudio('yourturn', volume);
+          // clearTimeout(reminderBeepTimeout);
+          // reminderBeepTimeout = setTimeout(() => {
+          //   console.log('5 sec alarmALARM');
+          //   playAudio('hurryup', volume);
+          // }, 5000);
           setBettingAllowed(true);
         }
         if (sStage === 'raise') {
@@ -303,6 +314,10 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady, volume,
         console.log('raised amount', sRaisedAmount)
         setRecentRaise(sRaisedAmount);
       });
+    }
+    return () => {
+      // clearTimeout(reminderBeepTimeout);
+      socket.off(`update board ${roomId}`);
     }
   }, [socket, roomId, user, usernameReady, volume]);
   useEffect(() => {
@@ -331,20 +346,26 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady, volume,
         }
       });
     }
-    return () => clearTimeout(dealingTimeout);
+    return () => {
+      clearTimeout(dealingTimeout);
+      socket.off(`flip card ${roomId}`);
+    }
   }, [socket, roomId, user, usernameReady, volume]);
   useEffect(() => {
     if (usernameReady) {
-      socket.on(`win ${roomId}`, (sPlayerInfo, sPot, winner) => {
+      socket.on(`win ${roomId}`, (sPlayerInfo, sPot, winner, reason = '') => {
         setBettingAllowed(false);
         playAudio('win', volume);
         setCurrentPlayer('');
         setPlayerInfo(sPlayerInfo);
         setPot(sPot);
         if (user === winner) {
-          socket.emit(`deal hand ${roomId}`);
+          socket.emit(`deal hand ${roomId}`, false, reason);
         };
       });
+    }
+    return () => {
+      socket.off(`win ${roomId}`);
     }
   }, [socket, roomId, user, usernameReady, volume]);
   useEffect(() => {
@@ -369,6 +390,18 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady, volume,
       setCurrentPlayer(sCurrentPlayer);
     });
   }, [socket, roomId]);
+  useEffect(() => {
+    socket.on(`update settings ${roomId}`, (newSettings) => {
+      setGameSettings(newSettings);
+    });
+  }, [socket, roomId]);
+
+  const handleChangeSettings = (e) => {
+    let newGameSettings = gameSettings;
+    newGameSettings[e.target.name] = e.target.checked;
+    setGameSettings(newGameSettings);
+    socket.emit(`update settings ${roomId}`, newGameSettings);
+  };
 
   const StartModal = () => {
     if (!usernameReady) {
@@ -404,6 +437,14 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady, volume,
             Current Players:  
           </h3>
           <PlayersJoiningList/>
+          <div className='settings'>
+            <input
+              name="blindsIncrease"
+              type="checkbox"
+              checked={gameSettings.blindsIncrease}
+              onChange={handleChangeSettings}/>
+              <label>Increase blinds over time?</label>
+          </div>
           <div>
             <button onClick={() => {
               if (players.length > 1 && players.length < 6) {

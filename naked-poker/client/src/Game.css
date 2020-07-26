@@ -26,6 +26,13 @@
     margin-top: 0;
     margin-bottom: 10px;
 }
+
+.room .modal .settings input{
+    height: 18px;
+    width: 18px;
+    margin: 8px;
+}
+
 .card{
     margin: 5px;
     text-align: center;

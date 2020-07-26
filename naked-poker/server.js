@@ -324,9 +324,12 @@ let disconnectUserTimeOuts = {};
   //   }
   // }
 // }
+let smallBlindsArray = [200, 400, 800, 1500, 2500, 5000, 10000];
 
 io.on('connection', (socket) => {
   let user = null;
+  let blindsIncrease = false;
+  let increaseBlindsNextHand = false;
   const { roomId } = socket.handshake.query;
   if (!rooms[roomId]) {
     rooms[roomId] = {
@@ -419,6 +422,12 @@ io.on('connection', (socket) => {
     }
   }
 
+  socket.on(`update settings ${roomId}`, (newSettings) => {
+    blindsIncrease = newSettings.blindsIncrease;
+    io.emit(`update settings ${roomId}`, newSettings);
+    console.log('blinds increase setting: ', blindsIncrease);
+  });
+
   socket.on(`set user ${roomId}`, (username) => {
     user = username;
     if (disconnectUserTimeOuts[user]) {
@@ -439,7 +448,7 @@ io.on('connection', (socket) => {
       room.users[user].socketId = socket.id;
       room.users[user].chips = 10000; //5000 + Math.floor(Math.random()*10)*1000; 
       room.users[user].color = room.allColors.splice(Math.floor(Math.random()*room.allColors.length), 1);
-      io.emit(`chat message ${roomId}`, user + " has joined the chat!", '#282c34');
+      io.emit(`chat message ${roomId}`, user + " has joined the chat!", room.users[user].color);
     } else {
       if (!room.users[user]) {
         console.log(user, ' cant join in an active game. thy can watch?')
@@ -447,7 +456,7 @@ io.on('connection', (socket) => {
         return;
       };
       room.users[user].socketId = socket.id;
-      io.emit(`chat message ${roomId}`, user + " has rejoined the chat :0", '#282c34');
+      io.emit(`chat message ${roomId}`, user + " has rejoined the chat :0", room.users[user].color);
       io.emit(`rejoin game ${roomId}`, user, room.users, room.pot, room.currentPlayer, room.dealerCards, room.currentBet, room.smallBlind);
     }
     io.emit(`all users ${roomId}`, Object.keys(room.users));
@@ -458,12 +467,24 @@ io.on('connection', (socket) => {
     io.emit(`chat message ${roomId}`, user + " : " + chatMsg, room.users[user].color);
   });
 
-  socket.on(`deal hand ${roomId}`, (firstGame = false) => {
+  socket.on(`deal hand ${roomId}`, (firstGame = false, reason = '') => {
     room.deck = resetAndMakeDeck();
     room.roundPlayers = room.allPlayers.slice().filter(user => room.users[user].chips > 0);
     if (room.roundPlayers.length === 1) {
       io.emit(`chat message ${roomId}`, '~!~!~! ' + room.roundPlayers[0] + " has won the game!! ~!~!~!", '#282c34');
       return;
+    }
+    if (firstGame && blindsIncrease) {
+      setInterval(() => {
+        increaseBlindsNextHand = true;
+        console.log('ready to increase blind')
+      }, 600000);
+    }
+    if (increaseBlindsNextHand) {
+      room.smallBlind = smallBlindsArray.shift();
+      io.emit(`chat message ${roomId}`, `~  blinds will increase to ${room.smallBlind} / ${room.smallBlind*2} ~`, '#576c95');
+      console.log('small blind increased to: ', room.smallBlind)
+      increaseBlindsNextHand = false;
     }
     room.pot = 0;
     room.allInPlayers = [];
@@ -499,12 +520,12 @@ io.on('connection', (socket) => {
     })
     console.log(room.users);
     if (firstGame) {
-      io.emit(`chat message ${roomId}`, '~~~ ' + user + " has started a new game! ~~~", '#282c34');
+      io.emit(`chat message ${roomId}`, '~~~ ' + user + " has started a new game! ~~~", '#418107');
       io.emit(`deal hand ${roomId}`, room.users, room.currentPlayer, room.smallBlind);
     } else {
       setTimeout(() => {
         io.emit(`deal hand ${roomId}`, room.users, room.currentPlayer, room.smallBlind);
-      }, 7000);
+      }, reason === 'folding'? 3000 : 7000);
     }
   });
   socket.on(`bet ${roomId}`, (user, amount, stage = '') => {
@@ -566,7 +587,7 @@ io.on('connection', (socket) => {
       room.users[winner].winner = true;
       io.emit(`chat message ${roomId}`, `${winner} won ${room.pot} this round as the last player standing.`, '#282c34');
       room.pot = 0;
-      io.emit(`win ${roomId}`, room.users, room.pot, winner);
+      io.emit(`win ${roomId}`, room.users, room.pot, winner, 'folding');
     } else if (room.currentPlayer === room.lastBetter) {
       stage = 'roundEnd';
       if (room.allInPlayers.length === room.roundPlayers.length - 1 || room.allInPlayers.length === room.roundPlayers.length) {
