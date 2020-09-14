@@ -56,6 +56,31 @@
     color: white;
     text-align: center;
 }
+
+@-webkit-keyframes alert {
+    50% {
+        background: #990d02; border-color: #ff0000;
+    }
+    
+}
+@-moz-keyframes alert {
+    50% {
+        background: #990d02; border-color: #ff0000;
+    }
+    
+}
+@keyframes alert {
+    50% {
+        background: #990d02; border-color: #ff0000;
+    }
+    
+}
+.playerSpace.alert {
+    -webkit-animation: alert 1.5s ease-in-out 0s;
+    -moz-animation: alert 1.5s ease-in-out 0s;
+    -o-animation: alert 1.5s ease-in-out 0s;
+    animation: alert 1.5s ease-in-out 0s;
+}
 .playerSpace .cards{
     display: flex;
     justify-content: center;

@@ -604,6 +604,9 @@ io.on('connection', (socket) => {
   socket.on(`calculate win ${roomId}`, () =>{
     calculateWin(room, roomId);
   });
+  socket.on(`blink ${roomId}`, (user) =>{
+    io.emit(`blink ${roomId}`, user);
+  });
 
   socket.on('disconnect', () => {
     console.log(disconnectUserTimeOuts);

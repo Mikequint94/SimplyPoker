@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Slider from '@material-ui/core/Slider';
 import HelpBar from './HelpBar.js';
 import VolumeBar from './Volume.js';
@@ -17,8 +17,10 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady, volume,
   const [pot, setPot] = useState(0);
   const [potentialBet, setPotentialBet] = useState(0);
   const [errorMessage, setErrorMessage] = useState(false);
+  const [blinkUser, setBlinkUser] = useState('');
   const [welcomeText, setWelcomeText] = useState(`Welcome to room ${roomId}!`);
   const [user, setUser] = useState('');
+  const reminderBeepTimeout = useRef(false);
 
   const setUserName = () => {
     if (players.indexOf(user) > -1) {
@@ -66,9 +68,6 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady, volume,
     if (['♥', '♦'].includes(card.slice(-1))) {
       classes += ' red';
     }
-    // if (idx === length - 1) {
-    //   classes += ' animate';
-    // }
     return classes;
   };
   const getPlayerClass = (player, playerPosition) => {
@@ -79,6 +78,9 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady, volume,
       classes += ' winner'
     } else if (currentPlayer === player && stage === true) {
       classes += ' active'
+    }
+    if (blinkUser === player) {
+      classes += ' alert';
     }
     return classes;
   };
@@ -149,26 +151,25 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady, volume,
   //   }
   // }, [socket, roomId, currentPlayer, currentBet, playerInfo]);
   let autoCheckAllInTimeout;
-  let reminderBeepTimeout;
   let dealingTimeout;
   const callHand = (callBet, canClick) => {
     if (currentPlayer === user && bettingAllowed && stage !== 'reveal' && stage !== 'dealing' && canClick && !playerInfo[user].folded) {
       console.log('called hand')
-      clearTimeout(reminderBeepTimeout);
+      clearTimeout(reminderBeepTimeout.current);
       clearTimeout(autoCheckAllInTimeout);
       socket.emit(`bet ${roomId}`, user, callBet);
     }
   };
   const foldHand = (canClick) => {
     if (currentPlayer === user && bettingAllowed && stage !== 'reveal' && stage !== 'dealing' && canClick && !playerInfo[user].folded) {
-      clearTimeout(reminderBeepTimeout);
+      clearTimeout(reminderBeepTimeout.current);
       console.log('folded hand')
       socket.emit(`fold ${roomId}`, user);
     }
   };
   const raiseBet = (bet, canClick) => {
     if (currentPlayer === user && bettingAllowed && stage !== 'reveal' && stage !== 'dealing' && canClick && !playerInfo[user].folded) {
-      clearTimeout(reminderBeepTimeout);
+      clearTimeout(reminderBeepTimeout.current);
       console.log('raised hand to ', bet)
       socket.emit(`bet ${roomId}`, user, bet - playerInfo[user].roundBet, 'raise');
     }
@@ -291,11 +292,11 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady, volume,
         const bigBlind = 2 * sSmallBlind;
         if (sCurrentPlayer === user && !['bigBlind', 'smallBlind'].includes(sStage) && !sPlayerInfo[user].winner) {
           playAudio('yourturn', volume);
-          // clearTimeout(reminderBeepTimeout);
-          // reminderBeepTimeout = setTimeout(() => {
-          //   console.log('5 sec alarmALARM');
-          //   playAudio('hurryup', volume);
-          // }, 5000);
+          clearTimeout(reminderBeepTimeout.current);
+          reminderBeepTimeout.current = setTimeout(() => {
+            playAudio('hurryup', volume);
+            socket.emit(`blink ${roomId}`, user);
+          }, 15000);
           setBettingAllowed(true);
         }
         if (sStage === 'raise') {
@@ -316,7 +317,7 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady, volume,
       });
     }
     return () => {
-      // clearTimeout(reminderBeepTimeout);
+      clearTimeout(reminderBeepTimeout.current);
       socket.off(`update board ${roomId}`);
     }
   }, [socket, roomId, user, usernameReady, volume]);
@@ -332,6 +333,7 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady, volume,
           clearTimeout(dealingTimeout);
           setStage('reveal');
           setBettingAllowed(false);
+          clearTimeout(reminderBeepTimeout.current);
           if (user === nextPlayer) {
             socket.emit(`calculate win ${roomId}`);
           }
@@ -355,6 +357,7 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady, volume,
     if (usernameReady) {
       socket.on(`win ${roomId}`, (sPlayerInfo, sPot, winner, reason = '') => {
         setBettingAllowed(false);
+        clearTimeout(reminderBeepTimeout.current);
         playAudio('win', volume);
         setCurrentPlayer('');
         setPlayerInfo(sPlayerInfo);
@@ -394,6 +397,18 @@ const Game = ({roomId, players, socket, setUsernameReady, usernameReady, volume,
     socket.on(`update settings ${roomId}`, (newSettings) => {
       setGameSettings(newSettings);
     });
+  }, [socket, roomId]);
+  useEffect(() => {
+    socket.on(`blink ${roomId}`, (user) => {
+      console.log('blink user set: ', user);
+      setBlinkUser(user)
+      setTimeout(() => {
+        setBlinkUser('');
+      }, 1000);
+    });
+    return () => {
+      socket.off(`blink ${roomId}`);
+    }
   }, [socket, roomId]);
 
   const handleChangeSettings = (e) => {
