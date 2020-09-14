@@ -481,7 +481,7 @@ io.on('connection', (socket) => {
       }, 600000);
     }
     if (increaseBlindsNextHand) {
-      room.smallBlind = smallBlindsArray.shift();
+      room.smallBlind = smallBlindsArray.shift() || 10000;
       io.emit(`chat message ${roomId}`, `~  blinds will increase to ${room.smallBlind} / ${room.smallBlind*2} ~`, '#576c95');
       console.log('small blind increased to: ', room.smallBlind)
       increaseBlindsNextHand = false;
