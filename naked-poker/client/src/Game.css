@@ -1,12 +1,15 @@
 .game {
     height: 72vh;
+    height: calc(var(--vh, 1vh) * 72);
     background: green;
     font-size: 1.5rem;
     color: #282c34;
 }
 .game .modal {
     height: 60vh;
+    height: calc(var(--vh, 1vh) * 60);
     top: 6vh;
+    top: calc(var(--vh, 1vh) * 6);
 }
 .game .modal h3{
     text-align: center;
@@ -49,6 +52,7 @@
     justify-content: center;
     flex-direction: column;
     height: 21vh;
+    height: calc(var(--vh, 1vh) * 21);
     width: 27vw;
     background: #282c34;
     position: absolute;
@@ -85,6 +89,7 @@
     display: flex;
     justify-content: center;
     padding-top: 3vh;
+    padding-top: calc(var(--vh, 1vh) * 3);
 }
 #tableCards .dealerCards{
     opacity: 1; 
@@ -110,6 +115,7 @@
 .playerSpace .role{
     position: relative;
     bottom: 19vh;
+    bottom: calc(var(--vh, 1vh) * 19);
     left: 1vw;
     width: 30px;
     border: 2px solid yellow;
@@ -141,9 +147,13 @@
 .player1 {
     left: 36vw;
     top: 47vh;
+    top: calc(var(--vh, 1vh) * 47);
+
 }
 .player2 {
     top: 24vh;
+    top: calc(var(--vh, 1vh) * 24);
+
     left: 1vw;
 }
 .player3 {
@@ -153,6 +163,8 @@
 .player4 {
     right: 1vw;
     top: 24vh;
+    top: calc(var(--vh, 1vh) * 24);
+
 }
 .player5 {
     left: 22vw;
@@ -174,6 +186,7 @@
     width: 27vw;
     position: absolute;
     top: 20vh;
+    top: calc(var(--vh, 1vh) * 20);
 }
 .playerSpace .roundBet.noBet div {
     display: none;
@@ -181,6 +194,7 @@
 #playerControls {
     left: 66vw;
     top: 57vh;
+    top: calc(var(--vh, 1vh) * 57);
     position: absolute;
     display: flex;
 }
@@ -189,6 +203,7 @@
 }
 #playerControls .control {
     height: calc( 10vh - 4px );
+    height: calc((var(--vh, 1vh) * 10) - 4px);
     width: calc( 10vw - 8px );
     background: black;
     border: 2px solid yellow;
@@ -230,6 +245,7 @@
     justify-content: center;
     flex-direction: column;
     height: 18vh;
+    height: calc(var(--vh, 1vh) * 18);
     width: 36vw;
     background: #32432a;
     position: absolute;
@@ -238,6 +254,7 @@
     text-align: center;
     left: 31.5vw;
     top: 26vh;
+    top: calc(var(--vh, 1vh) * 26);
 }   
 .game span#welcome, .game div#blinds, .game div#currentPlayerMsg {
     padding-left: 12px;
@@ -272,6 +289,7 @@
     .game #playerControls {
         flex-direction: column;
         top: calc(47vh - 10px);
+        top: calc((var(--vh, 1vh) * 47) - 10px);
         font-size: 1.2rem;
     }
     .game #playerControls div{
@@ -299,6 +317,7 @@
     .playerSpace .role {
         font-size: 0.8rem;
         bottom: 19vh;
+        bottom: calc(var(--vh, 1vh) * 19);
     }
     .playerSpace .cards {
         padding-top: 4vh;

@@ -1,5 +1,6 @@
 #left { 
     top: 53vh;
+    top: calc(var(--vh, 1vh) * 53);
     position: absolute;
     width: 0px;
     height: 0px;
@@ -7,6 +8,7 @@
 #left .sidebar {
     position: relative;
     top: -21.3vh;
+    top: calc(var(--vh, 1vh) * -21.3);
     transition: transform 0.5s;
 }
 #left.open {

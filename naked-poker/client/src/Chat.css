@@ -1,5 +1,6 @@
 #wrapper { 
   height: calc(28vh - 42px);
+  height: calc((var(--vh, 1vh) * 28) - 42px);
   overflow-y: scroll;
   display: flex;
   flex-direction: column-reverse;
