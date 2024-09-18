@@ -4,7 +4,7 @@ let app = express();
 let http = require('http').Server(app);
 let io = require('socket.io')(http);
 
-let port = process.env.PORT || 5000;
+let port = process.env.PORT || 3001;
 
 app.use(express.static(path.join(__dirname, 'client/build')));
 app.get('*', (req, res) => {
